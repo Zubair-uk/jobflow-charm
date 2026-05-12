@@ -7,7 +7,6 @@ import {
   Sparkles,
   Webhook,
   Inbox,
-  Check,
   Copy,
   Plug,
   CircleDot,
