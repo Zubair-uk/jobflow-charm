@@ -9,12 +9,36 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as LeadsRouteImport } from './routes/leads'
+import { Route as IntegrationsRouteImport } from './routes/integrations'
+import { Route as BillingRouteImport } from './routes/billing'
+import { Route as AiRepliesRouteImport } from './routes/ai-replies'
 import { Route as IndexRouteImport } from './routes/index'
 
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LeadsRoute = LeadsRouteImport.update({
   id: '/leads',
   path: '/leads',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IntegrationsRoute = IntegrationsRouteImport.update({
+  id: '/integrations',
+  path: '/integrations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BillingRoute = BillingRouteImport.update({
+  id: '/billing',
+  path: '/billing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AiRepliesRoute = AiRepliesRouteImport.update({
+  id: '/ai-replies',
+  path: '/ai-replies',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -25,37 +49,100 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/ai-replies': typeof AiRepliesRoute
+  '/billing': typeof BillingRoute
+  '/integrations': typeof IntegrationsRoute
   '/leads': typeof LeadsRoute
+  '/settings': typeof SettingsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/ai-replies': typeof AiRepliesRoute
+  '/billing': typeof BillingRoute
+  '/integrations': typeof IntegrationsRoute
   '/leads': typeof LeadsRoute
+  '/settings': typeof SettingsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/ai-replies': typeof AiRepliesRoute
+  '/billing': typeof BillingRoute
+  '/integrations': typeof IntegrationsRoute
   '/leads': typeof LeadsRoute
+  '/settings': typeof SettingsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/leads'
+  fullPaths:
+    | '/'
+    | '/ai-replies'
+    | '/billing'
+    | '/integrations'
+    | '/leads'
+    | '/settings'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/leads'
-  id: '__root__' | '/' | '/leads'
+  to:
+    | '/'
+    | '/ai-replies'
+    | '/billing'
+    | '/integrations'
+    | '/leads'
+    | '/settings'
+  id:
+    | '__root__'
+    | '/'
+    | '/ai-replies'
+    | '/billing'
+    | '/integrations'
+    | '/leads'
+    | '/settings'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AiRepliesRoute: typeof AiRepliesRoute
+  BillingRoute: typeof BillingRoute
+  IntegrationsRoute: typeof IntegrationsRoute
   LeadsRoute: typeof LeadsRoute
+  SettingsRoute: typeof SettingsRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/leads': {
       id: '/leads'
       path: '/leads'
       fullPath: '/leads'
       preLoaderRoute: typeof LeadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/integrations': {
+      id: '/integrations'
+      path: '/integrations'
+      fullPath: '/integrations'
+      preLoaderRoute: typeof IntegrationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/billing': {
+      id: '/billing'
+      path: '/billing'
+      fullPath: '/billing'
+      preLoaderRoute: typeof BillingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ai-replies': {
+      id: '/ai-replies'
+      path: '/ai-replies'
+      fullPath: '/ai-replies'
+      preLoaderRoute: typeof AiRepliesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -70,7 +157,11 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AiRepliesRoute: AiRepliesRoute,
+  BillingRoute: BillingRoute,
+  IntegrationsRoute: IntegrationsRoute,
   LeadsRoute: LeadsRoute,
+  SettingsRoute: SettingsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
