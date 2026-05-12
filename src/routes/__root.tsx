@@ -9,6 +9,9 @@ import {
 } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
+import { Bell, Search } from "lucide-react";
 
 function NotFoundComponent() {
   return (
@@ -113,7 +116,34 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
+      <SidebarProvider>
+        <div className="flex min-h-screen w-full bg-background">
+          <AppSidebar />
+          <div className="flex-1 flex flex-col">
+            <header className="h-14 flex items-center justify-between gap-4 border-b border-border bg-card/50 backdrop-blur px-4">
+              <div className="flex items-center gap-3">
+                <SidebarTrigger />
+                <div className="hidden md:flex items-center gap-2 rounded-md border border-border bg-background px-3 py-1.5 text-sm text-muted-foreground w-72">
+                  <Search className="h-4 w-4" />
+                  <span>Search leads, replies...</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <button className="relative p-2 rounded-md hover:bg-accent text-muted-foreground">
+                  <Bell className="h-4 w-4" />
+                  <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-primary" />
+                </button>
+                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center text-primary-foreground text-xs font-semibold">
+                  JF
+                </div>
+              </div>
+            </header>
+            <main className="flex-1 p-6">
+              <Outlet />
+            </main>
+          </div>
+        </div>
+      </SidebarProvider>
     </QueryClientProvider>
   );
 }
