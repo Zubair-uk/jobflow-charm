@@ -11,7 +11,11 @@ import {
   Copy,
   Plug,
   CircleDot,
+  Send,
+  Loader2,
 } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { sendTestLeadWebhook } from "@/lib/test-webhook.functions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -102,6 +106,8 @@ function Page() {
       : "/api/public/leads-webhook";
   const [integrations, setIntegrations] = useState<Integration[]>(INITIAL);
   const [webhookActive, setWebhookActive] = useState(true);
+  const [testing, setTesting] = useState(false);
+  const sendTest = useServerFn(sendTestLeadWebhook);
 
   const toggle = (id: string) => {
     setIntegrations((prev) =>
@@ -129,6 +135,28 @@ function Page() {
       toast.success("Webhook URL copied to clipboard");
     } catch {
       toast.error("Could not copy to clipboard");
+    }
+  };
+
+  const onTestWebhook = async () => {
+    setTesting(true);
+    try {
+      const result = await sendTest();
+      if (result.ok) {
+        toast.success("Test lead sent — check the Leads page", {
+          description: "A sample lead was delivered through the webhook.",
+        });
+      } else {
+        toast.error("Webhook test failed", {
+          description: result.error || `Status ${result.status}`,
+        });
+      }
+    } catch (e) {
+      toast.error("Webhook test failed", {
+        description: e instanceof Error ? e.message : "Unknown error",
+      });
+    } finally {
+      setTesting(false);
     }
   };
 
@@ -254,6 +282,14 @@ function Page() {
               <Button variant="outline" onClick={copyWebhook} className="shrink-0">
                 <Copy className="h-4 w-4" />
                 Copy
+              </Button>
+              <Button onClick={onTestWebhook} disabled={testing} className="shrink-0">
+                {testing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+                {testing ? "Sending…" : "Test Webhook"}
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
