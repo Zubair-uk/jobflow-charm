@@ -78,7 +78,7 @@ export const Route = createFileRoute("/api/public/leads-webhook")({
           return json({ error: error.message }, 500);
         }
 
-        return json({ success: true }, 201);
+        return json({ success: true, auth_disabled: true }, 201);
       },
     },
   },
