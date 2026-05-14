@@ -111,6 +111,7 @@ function Page() {
     status: number | string;
     ok: boolean;
     body: string;
+    url?: string;
   } | null>(null);
   const sendTest = useServerFn(sendTestLeadWebhook);
 
@@ -147,11 +148,14 @@ function Page() {
     setTesting(true);
     setDebug(null);
     try {
-      const result = await sendTest();
+      const origin =
+        typeof window !== "undefined" ? window.location.origin : undefined;
+      const result = await sendTest({ data: { origin } });
       setDebug({
         status: result.status,
         ok: result.ok,
         body: result.ok ? (result.response ?? "") : (result.error ?? ""),
+        url: result.url,
       });
       if (result.ok) {
         toast.success("Test lead sent — check the Leads page", {
