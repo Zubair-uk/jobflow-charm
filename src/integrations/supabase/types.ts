@@ -93,34 +93,49 @@ export type Database = {
       }
       leads: {
         Row: {
+          ai_reply: string | null
           created_at: string
           email: string | null
+          full_name: string | null
           id: string
-          name: string
+          lead_source: string | null
+          name: string | null
           notes: string | null
+          phone: string | null
           property: string | null
+          property_interest: string | null
           status: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          ai_reply?: string | null
           created_at?: string
           email?: string | null
+          full_name?: string | null
           id?: string
-          name: string
+          lead_source?: string | null
+          name?: string | null
           notes?: string | null
+          phone?: string | null
           property?: string | null
+          property_interest?: string | null
           status?: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          ai_reply?: string | null
           created_at?: string
           email?: string | null
+          full_name?: string | null
           id?: string
-          name?: string
+          lead_source?: string | null
+          name?: string | null
           notes?: string | null
+          phone?: string | null
           property?: string | null
+          property_interest?: string | null
           status?: string
           updated_at?: string
           user_id?: string
