@@ -42,9 +42,17 @@ export const Route = createFileRoute("/api/public/leads-webhook")({
 
         const provided =
           request.headers.get("x-webhook-secret") ??
+          request.headers.get("X-Webhook-Secret") ??
           request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
         if (!provided || provided !== expected) {
-          return json({ error: "Unauthorized" }, 401);
+          return json(
+            {
+              error: "Authorization failed",
+              receivedSecretExists: !!provided,
+              receivedSecretLength: provided ? provided.length : 0,
+            },
+            401,
+          );
         }
 
         let body: unknown;
