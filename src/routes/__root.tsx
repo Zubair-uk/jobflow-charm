@@ -11,7 +11,11 @@ import {
 import appCss from "../styles.css?url";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
-import { Bell, Search } from "lucide-react";
+import { Bell, Search, LogOut } from "lucide-react";
+import { AuthProvider, useAuth } from "@/hooks/use-auth";
+import { Toaster } from "@/components/ui/sonner";
+import { useEffect } from "react";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 
 function NotFoundComponent() {
   return (
@@ -116,34 +120,72 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SidebarProvider>
-        <div className="flex min-h-screen w-full bg-background">
-          <AppSidebar />
-          <div className="flex-1 flex flex-col">
-            <header className="h-14 flex items-center justify-between gap-4 border-b border-border bg-card/50 backdrop-blur px-4">
-              <div className="flex items-center gap-3">
-                <SidebarTrigger />
-                <div className="hidden md:flex items-center gap-2 rounded-md border border-border bg-background px-3 py-1.5 text-sm text-muted-foreground w-72">
-                  <Search className="h-4 w-4" />
-                  <span>Search leads, replies...</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <button className="relative p-2 rounded-md hover:bg-accent text-muted-foreground">
-                  <Bell className="h-4 w-4" />
-                  <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-primary" />
-                </button>
-                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center text-primary-foreground text-xs font-semibold">
-                  JF
-                </div>
-              </div>
-            </header>
-            <main className="flex-1 p-6">
-              <Outlet />
-            </main>
-          </div>
-        </div>
-      </SidebarProvider>
+      <AuthProvider>
+        <AppShell />
+        <Toaster />
+      </AuthProvider>
     </QueryClientProvider>
+  );
+}
+
+function AppShell() {
+  const { session, loading, user, signOut } = useAuth();
+  const pathname = useRouterState({ select: (r) => r.location.pathname });
+  const navigate = useNavigate();
+  const isAuthRoute = pathname === "/auth";
+
+  useEffect(() => {
+    if (!loading && !session && !isAuthRoute) {
+      navigate({ to: "/auth" });
+    }
+  }, [loading, session, isAuthRoute, navigate]);
+
+  if (isAuthRoute) return <Outlet />;
+
+  if (loading || !session) {
+    return <div className="min-h-screen flex items-center justify-center bg-background text-sm text-muted-foreground">Loading…</div>;
+  }
+
+  const initials = (user?.user_metadata?.display_name || user?.email || "U")
+    .split(/[\s@]/)[0]
+    .slice(0, 2)
+    .toUpperCase();
+
+  return (
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full bg-background">
+        <AppSidebar />
+        <div className="flex-1 flex flex-col">
+          <header className="h-14 flex items-center justify-between gap-4 border-b border-border bg-card/50 backdrop-blur px-4">
+            <div className="flex items-center gap-3">
+              <SidebarTrigger />
+              <div className="hidden md:flex items-center gap-2 rounded-md border border-border bg-background px-3 py-1.5 text-sm text-muted-foreground w-72">
+                <Search className="h-4 w-4" />
+                <span>Search leads, replies...</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button className="relative p-2 rounded-md hover:bg-accent text-muted-foreground">
+                <Bell className="h-4 w-4" />
+                <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-primary" />
+              </button>
+              <button
+                onClick={() => signOut()}
+                title="Sign out"
+                className="p-2 rounded-md hover:bg-accent text-muted-foreground"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center text-primary-foreground text-xs font-semibold">
+                {initials}
+              </div>
+            </div>
+          </header>
+          <main className="flex-1 p-6">
+            <Outlet />
+          </main>
+        </div>
+      </div>
+    </SidebarProvider>
   );
 }
