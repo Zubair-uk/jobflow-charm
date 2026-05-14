@@ -37,10 +37,8 @@ export const Route = createFileRoute("/api/public/leads-webhook")({
       OPTIONS: async () => new Response(null, { status: 204, headers: corsHeaders }),
 
       POST: async ({ request }) => {
-        const expected = process.env.N8N_WEBHOOK_SECRET;
-        if (!expected) {
-          return json({ error: "Webhook secret not configured" }, 500);
-        }
+        // TEMP: hardcoded webhook secret (fallback if env not set)
+        const expected = process.env.N8N_WEBHOOK_SECRET ?? "jobflowai12345";
 
         const provided =
           request.headers.get("x-webhook-secret") ??
