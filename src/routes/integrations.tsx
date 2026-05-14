@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
 import {
   Mail,
@@ -93,9 +94,12 @@ const INITIAL: Integration[] = [
   },
 ];
 
-const WEBHOOK_URL = "https://api.jobflow.ai/v1/hooks/wh_8f3ad21c9e7b4f56";
-
 function Page() {
+  const { user } = useAuth();
+  const webhookUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/api/public/leads-webhook`
+      : "/api/public/leads-webhook";
   const [integrations, setIntegrations] = useState<Integration[]>(INITIAL);
   const [webhookActive, setWebhookActive] = useState(true);
 
@@ -121,8 +125,18 @@ function Page() {
 
   const copyWebhook = async () => {
     try {
-      await navigator.clipboard.writeText(WEBHOOK_URL);
+      await navigator.clipboard.writeText(webhookUrl);
       toast.success("Webhook URL copied to clipboard");
+    } catch {
+      toast.error("Could not copy to clipboard");
+    }
+  };
+
+  const copyUserId = async () => {
+    if (!user?.id) return;
+    try {
+      await navigator.clipboard.writeText(user.id);
+      toast.success("User ID copied");
     } catch {
       toast.error("Could not copy to clipboard");
     }
@@ -234,7 +248,7 @@ function Page() {
               <Input
                 id="webhook-url"
                 readOnly
-                value={WEBHOOK_URL}
+                value={webhookUrl}
                 className="font-mono text-xs"
               />
               <Button variant="outline" onClick={copyWebhook} className="shrink-0">
@@ -243,9 +257,47 @@ function Page() {
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              POST events are sent as JSON. Verify the <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">X-JobFlow-Signature</code> header before processing.
+              POST JSON to this URL. Authenticate by sending your shared secret in the{" "}
+              <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">X-Webhook-Secret</code>{" "}
+              header. Include your <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">user_id</code> in the body so the lead is attached to your account.
             </p>
           </div>
+
+          {user?.id && (
+            <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                Your user_id
+              </Label>
+              <div className="flex gap-2">
+                <Input readOnly value={user.id} className="font-mono text-xs" />
+                <Button variant="outline" onClick={copyUserId} className="shrink-0">
+                  <Copy className="h-4 w-4" />
+                  Copy
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+              Example payload
+            </Label>
+            <pre className="overflow-x-auto rounded-md border border-border bg-muted/50 p-3 text-[11px] font-mono leading-relaxed text-foreground">{`POST ${webhookUrl}
+Content-Type: application/json
+X-Webhook-Secret: <your secret>
+
+{
+  "user_id": "${user?.id ?? "<your user_id>"}",
+  "full_name": "Jane Doe",
+  "email": "jane@example.com",
+  "phone": "+1 555 123 4567",
+  "property_interest": "3-bed condo, downtown",
+  "lead_source": "n8n",
+  "status": "New",
+  "ai_reply": "Thanks Jane, here are 3 listings…"
+}`}</pre>
+          </div>
+
           <div className="grid gap-3 sm:grid-cols-3">
             <WebhookStat label="Last delivery" value="32s ago" tone="success" />
             <WebhookStat label="Success rate (24h)" value="99.8%" tone="success" />
