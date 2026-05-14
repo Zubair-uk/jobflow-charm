@@ -14,8 +14,6 @@ const json = (body: unknown, status = 200) =>
     headers: { "Content-Type": "application/json", ...corsHeaders },
   });
 
-const STATUSES = ["New", "Qualified", "Follow-up", "Closed"] as const;
-
 const HARDCODED_USER_ID = "7d21c6fb-09bf-47e0-b424-75838ac73a30";
 
 const LeadSchema = z.object({
@@ -26,7 +24,7 @@ const LeadSchema = z.object({
   lead_source: z.string().trim().max(100).optional().nullable(),
   source: z.string().trim().max(100).optional().nullable(),
   message: z.string().trim().max(5000).optional().nullable(),
-  status: z.enum(STATUSES).optional().default("New"),
+  status: z.string().trim().max(50).optional(),
   ai_reply: z.string().trim().max(5000).optional().nullable(),
   created_at: z.string().datetime().optional(),
 });

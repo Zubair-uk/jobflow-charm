@@ -1,18 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Plus, Search, Pencil, Trash2, Loader2, Users, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Search, Loader2, Users, Sparkles, Mail, Phone, Calendar, Home, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -24,14 +20,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 
 export const Route = createFileRoute("/leads")({
   head: () => ({
@@ -43,10 +31,10 @@ export const Route = createFileRoute("/leads")({
   component: LeadsPage,
 });
 
-const STATUSES = ["New", "Qualified", "Follow-up", "Closed"] as const;
-type Status = (typeof STATUSES)[number];
+export const STATUSES = ["New", "Contacted", "Viewing Booked", "Closed", "Lost"] as const;
+export type Status = (typeof STATUSES)[number];
 
-type Lead = {
+export type Lead = {
   id: string;
   user_id: string;
   full_name: string | null;
@@ -56,26 +44,20 @@ type Lead = {
   lead_source: string | null;
   status: string;
   ai_reply: string | null;
+  message: string | null;
+  notes: string | null;
   created_at: string;
 };
 
-const emptyForm = {
-  full_name: "",
-  email: "",
-  phone: "",
-  property_interest: "",
-  lead_source: "",
-  status: "New" as Status,
-  ai_reply: "",
-};
-
-function statusVariant(status: string) {
+export function statusVariant(status: string) {
   switch (status) {
-    case "Qualified":
-      return "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
-    case "Follow-up":
+    case "Contacted":
+      return "bg-info/10 text-info border-info/20";
+    case "Viewing Booked":
       return "bg-amber-500/10 text-amber-500 border-amber-500/20";
     case "Closed":
+      return "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
+    case "Lost":
       return "bg-muted text-muted-foreground border-border";
     default:
       return "bg-primary/10 text-primary border-primary/20";
@@ -88,12 +70,8 @@ function LeadsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<Lead | null>(null);
-  const [form, setForm] = useState(emptyForm);
-  const [busy, setBusy] = useState(false);
+  const [selected, setSelected] = useState<Lead | null>(null);
 
-  // Initial fetch
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
@@ -108,12 +86,9 @@ function LeadsPage() {
       else setLeads((data ?? []) as Lead[]);
       setLoading(false);
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [user]);
 
-  // Realtime subscription
   useEffect(() => {
     if (!user) return;
     const channel = supabase
@@ -130,6 +105,7 @@ function LeadsPage() {
             }
             if (payload.eventType === "UPDATE") {
               const row = payload.new as Lead;
+              setSelected((s) => (s && s.id === row.id ? row : s));
               return prev.map((l) => (l.id === row.id ? row : l));
             }
             if (payload.eventType === "DELETE") {
@@ -141,9 +117,7 @@ function LeadsPage() {
         },
       )
       .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [user]);
 
   const filtered = useMemo(() => {
@@ -157,83 +131,26 @@ function LeadsPage() {
     });
   }, [leads, search, statusFilter]);
 
-  const openCreate = () => {
-    setEditing(null);
-    setForm(emptyForm);
-    setDialogOpen(true);
-  };
-
-  const openEdit = (lead: Lead) => {
-    setEditing(lead);
-    setForm({
-      full_name: lead.full_name ?? "",
-      email: lead.email ?? "",
-      phone: lead.phone ?? "",
-      property_interest: lead.property_interest ?? "",
-      lead_source: lead.lead_source ?? "",
-      status: (STATUSES.includes(lead.status as Status) ? lead.status : "New") as Status,
-      ai_reply: lead.ai_reply ?? "",
-    });
-    setDialogOpen(true);
-  };
-
-  const onSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
-    if (!form.full_name.trim()) {
-      toast.error("Name is required");
-      return;
-    }
-    setBusy(true);
-    const payload = {
-      full_name: form.full_name.trim(),
-      name: form.full_name.trim(),
-      email: form.email.trim() || null,
-      phone: form.phone.trim() || null,
-      property_interest: form.property_interest.trim() || null,
-      property: form.property_interest.trim() || null,
-      lead_source: form.lead_source.trim() || null,
-      status: form.status,
-      ai_reply: form.ai_reply.trim() || null,
-    };
-    if (editing) {
-      const { error } = await supabase.from("leads").update(payload).eq("id", editing.id);
-      if (error) toast.error(error.message);
-      else toast.success("Lead updated");
-    } else {
-      const { error } = await supabase.from("leads").insert({ ...payload, user_id: user.id });
-      if (error) toast.error(error.message);
-      else toast.success("Lead created");
-    }
-    setBusy(false);
-    setDialogOpen(false);
-  };
-
-  const onDelete = async (lead: Lead) => {
-    if (!confirm(`Delete ${lead.full_name ?? "this lead"}?`)) return;
-    const { error } = await supabase.from("leads").delete().eq("id", lead.id);
-    if (error) toast.error(error.message);
-    else toast.success("Lead deleted");
-  };
-
   const onStatusChange = async (lead: Lead, status: string) => {
+    const prev = lead.status;
+    setLeads((ls) => ls.map((l) => (l.id === lead.id ? { ...l, status } : l)));
+    setSelected((s) => (s && s.id === lead.id ? { ...s, status } : s));
     const { error } = await supabase.from("leads").update({ status }).eq("id", lead.id);
-    if (error) toast.error(error.message);
+    if (error) {
+      toast.error(error.message);
+      setLeads((ls) => ls.map((l) => (l.id === lead.id ? { ...l, status: prev } : l)));
+    } else {
+      toast.success("Status updated");
+    }
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Leads</h1>
-          <p className="text-sm text-muted-foreground">
-            {leads.length} total · {filtered.length} shown
-          </p>
-        </div>
-        <Button onClick={openCreate}>
-          <Plus className="h-4 w-4" />
-          New lead
-        </Button>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Leads</h1>
+        <p className="text-sm text-muted-foreground">
+          {leads.length} total · {filtered.length} shown
+        </p>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -274,51 +191,106 @@ function LeadsPage() {
             </p>
             <p className="text-sm text-muted-foreground mt-1">
               {leads.length === 0
-                ? "Create your first lead to get started."
+                ? "Leads from your webhook will appear here."
                 : "Try a different search or status."}
             </p>
-            {leads.length === 0 && (
-              <Button className="mt-4" onClick={openCreate}>
-                <Plus className="h-4 w-4" /> New lead
-              </Button>
-            )}
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead>Property</TableHead>
-                <TableHead>Source</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>AI</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((lead) => (
-                <TableRow key={lead.id}>
-                  <TableCell className="font-medium text-foreground">
-                    {lead.full_name ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    <div>{lead.email ?? "—"}</div>
-                    {lead.phone && <div className="text-xs">{lead.phone}</div>}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {lead.property_interest ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {lead.lead_source ?? "—"}
-                  </TableCell>
-                  <TableCell>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground bg-muted/40">
+                  <th className="px-4 py-3 font-medium">Name</th>
+                  <th className="px-4 py-3 font-medium">Contact</th>
+                  <th className="px-4 py-3 font-medium hidden md:table-cell">Property</th>
+                  <th className="px-4 py-3 font-medium hidden lg:table-cell">Source</th>
+                  <th className="px-4 py-3 font-medium">Status</th>
+                  <th className="px-4 py-3 font-medium hidden sm:table-cell">AI</th>
+                  <th className="px-4 py-3 font-medium hidden md:table-cell">Created</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((lead) => (
+                  <tr
+                    key={lead.id}
+                    onClick={() => setSelected(lead)}
+                    className="border-t border-border hover:bg-muted/30 transition-colors cursor-pointer"
+                  >
+                    <td className="px-4 py-3 font-medium text-foreground">
+                      {lead.full_name ?? "—"}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      <div>{lead.email ?? "—"}</div>
+                      {lead.phone && <div className="text-xs">{lead.phone}</div>}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
+                      {lead.property_interest ?? "—"}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground hidden lg:table-cell">
+                      {lead.lead_source ?? "—"}
+                    </td>
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <Select
+                        value={STATUSES.includes(lead.status as Status) ? lead.status : "New"}
+                        onValueChange={(v) => onStatusChange(lead, v)}
+                      >
+                        <SelectTrigger className={`h-8 w-[150px] border ${statusVariant(lead.status)}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {STATUSES.map((s) => (
+                            <SelectItem key={s} value={s}>{s}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </td>
+                    <td className="px-4 py-3 hidden sm:table-cell">
+                      {lead.ai_reply ? (
+                        <Badge variant="outline" className="gap-1">
+                          <Sparkles className="h-3 w-3" /> Replied
+                        </Badge>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground text-sm whitespace-nowrap hidden md:table-cell">
+                      {new Date(lead.created_at).toLocaleDateString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          {selected && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-xl">{selected.full_name ?? "Unnamed lead"}</DialogTitle>
+                <DialogDescription>
+                  Captured {new Date(selected.created_at).toLocaleString()}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <InfoRow icon={Mail} label="Email" value={selected.email} />
+                  <InfoRow icon={Phone} label="Phone" value={selected.phone} />
+                  <InfoRow icon={Home} label="Property interest" value={selected.property_interest} />
+                  <InfoRow icon={Tag} label="Source" value={selected.lead_source} />
+                  <InfoRow icon={Calendar} label="Created" value={new Date(selected.created_at).toLocaleString()} />
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Status</label>
+                  <div className="mt-1.5">
                     <Select
-                      value={STATUSES.includes(lead.status as Status) ? lead.status : "New"}
-                      onValueChange={(v) => onStatusChange(lead, v)}
+                      value={STATUSES.includes(selected.status as Status) ? selected.status : "New"}
+                      onValueChange={(v) => onStatusChange(selected, v)}
                     >
-                      <SelectTrigger className={`h-8 w-[130px] border ${statusVariant(lead.status)}`}>
+                      <SelectTrigger className={`w-full sm:w-[200px] border ${statusVariant(selected.status)}`}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -327,131 +299,45 @@ function LeadsPage() {
                         ))}
                       </SelectContent>
                     </Select>
-                  </TableCell>
-                  <TableCell>
-                    {lead.ai_reply ? (
-                      <Badge variant="outline" className="gap-1">
-                        <Sparkles className="h-3 w-3" /> Replied
-                      </Badge>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
-                    {new Date(lead.created_at).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(lead)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => onDelete(lead)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </div>
+                  </div>
+                </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{editing ? "Edit lead" : "New lead"}</DialogTitle>
-            <DialogDescription>
-              {editing ? "Update lead details and status." : "Add a new lead to your pipeline."}
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={onSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="full_name">Full name *</Label>
-              <Input
-                id="full_name"
-                value={form.full_name}
-                onChange={(e) => setForm({ ...form, full_name: e.target.value })}
-                required
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                />
+                <div>
+                  <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Enquiry message</label>
+                  <div className="mt-1.5 rounded-lg border border-border bg-muted/30 p-4 text-sm text-foreground whitespace-pre-wrap">
+                    {selected.message || selected.notes || (
+                      <span className="text-muted-foreground italic">No message provided</span>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5 text-primary" /> AI reply
+                  </label>
+                  <div className="mt-1.5 rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm text-foreground whitespace-pre-wrap">
+                    {selected.ai_reply || (
+                      <span className="text-muted-foreground italic">No AI reply yet</span>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="phone">Phone</Label>
-                <Input
-                  id="phone"
-                  value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="property_interest">Property interest</Label>
-              <Input
-                id="property_interest"
-                value={form.property_interest}
-                onChange={(e) => setForm({ ...form, property_interest: e.target.value })}
-                placeholder="e.g. 3-bed condo, downtown"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="lead_source">Source</Label>
-                <Input
-                  id="lead_source"
-                  value={form.lead_source}
-                  onChange={(e) => setForm({ ...form, lead_source: e.target.value })}
-                  placeholder="Website, Zillow…"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="status">Status</Label>
-                <Select
-                  value={form.status}
-                  onValueChange={(v) => setForm({ ...form, status: v as Status })}
-                >
-                  <SelectTrigger id="status">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STATUSES.map((s) => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="ai_reply">AI reply</Label>
-              <Textarea
-                id="ai_reply"
-                rows={3}
-                value={form.ai_reply}
-                onChange={(e) => setForm({ ...form, ai_reply: e.target.value })}
-                placeholder="Latest AI-generated response…"
-              />
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={busy}>
-                {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-                {editing ? "Save changes" : "Create lead"}
-              </Button>
-            </DialogFooter>
-          </form>
+            </>
+          )}
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function InfoRow({ icon: Icon, label, value }: { icon: typeof Mail; label: string; value: string | null }) {
+  return (
+    <div className="flex items-start gap-2.5">
+      <Icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+      <div className="min-w-0">
+        <div className="text-xs text-muted-foreground">{label}</div>
+        <div className="text-sm text-foreground truncate">{value || "—"}</div>
+      </div>
     </div>
   );
 }
