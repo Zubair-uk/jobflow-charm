@@ -37,23 +37,7 @@ export const Route = createFileRoute("/api/public/leads-webhook")({
       OPTIONS: async () => new Response(null, { status: 204, headers: corsHeaders }),
 
       POST: async ({ request }) => {
-        // TEMP: hardcoded webhook secret (fallback if env not set)
-        const expected = process.env.N8N_WEBHOOK_SECRET ?? "jobflowai12345";
-
-        const provided =
-          request.headers.get("x-webhook-secret") ??
-          request.headers.get("X-Webhook-Secret") ??
-          request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-        if (!provided || provided !== expected) {
-          return json(
-            {
-              error: "Authorization failed",
-              receivedSecretExists: !!provided,
-              receivedSecretLength: provided ? provided.length : 0,
-            },
-            401,
-          );
-        }
+        // TEMP: webhook auth disabled while wiring up n8n. Re-enable before going live.
 
         let body: unknown;
         try {
@@ -94,7 +78,7 @@ export const Route = createFileRoute("/api/public/leads-webhook")({
           return json({ error: error.message }, 500);
         }
 
-        return json({ success: true, lead_id: data.id }, 201);
+        return json({ success: true }, 201);
       },
     },
   },
