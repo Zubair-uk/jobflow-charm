@@ -16,6 +16,7 @@ import { Route as BillingRouteImport } from './routes/billing'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AiRepliesRouteImport } from './routes/ai-replies'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiPublicLeadsWebhookRouteImport } from './routes/api/public/leads-webhook'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
@@ -52,6 +53,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicLeadsWebhookRoute = ApiPublicLeadsWebhookRouteImport.update({
+  id: '/api/public/leads-webhook',
+  path: '/api/public/leads-webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -61,6 +67,7 @@ export interface FileRoutesByFullPath {
   '/integrations': typeof IntegrationsRoute
   '/leads': typeof LeadsRoute
   '/settings': typeof SettingsRoute
+  '/api/public/leads-webhook': typeof ApiPublicLeadsWebhookRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -70,6 +77,7 @@ export interface FileRoutesByTo {
   '/integrations': typeof IntegrationsRoute
   '/leads': typeof LeadsRoute
   '/settings': typeof SettingsRoute
+  '/api/public/leads-webhook': typeof ApiPublicLeadsWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -80,6 +88,7 @@ export interface FileRoutesById {
   '/integrations': typeof IntegrationsRoute
   '/leads': typeof LeadsRoute
   '/settings': typeof SettingsRoute
+  '/api/public/leads-webhook': typeof ApiPublicLeadsWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -91,6 +100,7 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/leads'
     | '/settings'
+    | '/api/public/leads-webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -100,6 +110,7 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/leads'
     | '/settings'
+    | '/api/public/leads-webhook'
   id:
     | '__root__'
     | '/'
@@ -109,6 +120,7 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/leads'
     | '/settings'
+    | '/api/public/leads-webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -119,6 +131,7 @@ export interface RootRouteChildren {
   IntegrationsRoute: typeof IntegrationsRoute
   LeadsRoute: typeof LeadsRoute
   SettingsRoute: typeof SettingsRoute
+  ApiPublicLeadsWebhookRoute: typeof ApiPublicLeadsWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -172,6 +185,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/leads-webhook': {
+      id: '/api/public/leads-webhook'
+      path: '/api/public/leads-webhook'
+      fullPath: '/api/public/leads-webhook'
+      preLoaderRoute: typeof ApiPublicLeadsWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -183,6 +203,7 @@ const rootRouteChildren: RootRouteChildren = {
   IntegrationsRoute: IntegrationsRoute,
   LeadsRoute: LeadsRoute,
   SettingsRoute: SettingsRoute,
+  ApiPublicLeadsWebhookRoute: ApiPublicLeadsWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
