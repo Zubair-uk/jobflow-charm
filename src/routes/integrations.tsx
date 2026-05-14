@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
 import {
@@ -15,7 +15,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
-import { sendTestLeadWebhook } from "@/lib/test-webhook.functions";
+import { sendTestLeadWebhook, getLeadsDebugInfo } from "@/lib/test-webhook.functions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -111,9 +111,29 @@ function Page() {
     status: number | string;
     ok: boolean;
     body: string;
-    url?: string;
+  } | null>(null);
+  const [adminDebug, setAdminDebug] = useState<{
+    userId: string;
+    totalCount: number;
+    mineCount: number;
+    recent: Array<{ id: string; user_id: string; full_name: string | null; email: string | null; created_at: string }>;
   } | null>(null);
   const sendTest = useServerFn(sendTestLeadWebhook);
+  const fetchDebug = useServerFn(getLeadsDebugInfo);
+
+  const refreshDebug = async () => {
+    try {
+      const info = await fetchDebug();
+      setAdminDebug(info);
+    } catch (e) {
+      console.error("[debug] failed", e);
+    }
+  };
+
+  useEffect(() => {
+    if (user) refreshDebug();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const toggle = (id: string) => {
     setIntegrations((prev) =>
@@ -148,19 +168,17 @@ function Page() {
     setTesting(true);
     setDebug(null);
     try {
-      const origin =
-        typeof window !== "undefined" ? window.location.origin : undefined;
-      const result = await sendTest({ data: { origin } });
+      const result = await sendTest();
       setDebug({
         status: result.status,
         ok: result.ok,
         body: result.ok ? (result.response ?? "") : (result.error ?? ""),
-        url: result.url,
       });
       if (result.ok) {
         toast.success("Test lead sent — check the Leads page", {
           description: "A sample lead was delivered through the webhook.",
         });
+        refreshDebug();
       } else {
         toast.error(`Webhook test failed (status ${result.status})`, {
           description: result.error || "Unknown error",
@@ -374,12 +392,23 @@ X-Webhook-Secret: <your secret>
                   <span className="text-muted-foreground">Status: </span>
                   {String(debug.status)} {debug.ok ? "OK" : "FAIL"}
                 </div>
-                {debug.url && (
-                  <div className="mb-1 text-muted-foreground">
-                    URL: <span className="text-foreground">{debug.url}</span>
-                  </div>
-                )}
                 <pre className="overflow-x-auto whitespace-pre-wrap break-all">{debug.body || "(empty body)"}</pre>
+              </div>
+            </div>
+          )}
+
+          {adminDebug && (
+            <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                Admin debug (bypasses RLS)
+              </Label>
+              <div className="rounded-md border border-border bg-muted/30 p-3 text-xs font-mono space-y-1">
+                <div><span className="text-muted-foreground">Auth user_id: </span>{adminDebug.userId}</div>
+                <div><span className="text-muted-foreground">Total leads in DB: </span>{adminDebug.totalCount}</div>
+                <div><span className="text-muted-foreground">Leads owned by you: </span>{adminDebug.mineCount}</div>
+                <div className="pt-1 text-muted-foreground">Recent rows:</div>
+                <pre className="overflow-x-auto whitespace-pre-wrap break-all">{JSON.stringify(adminDebug.recent, null, 2)}</pre>
+                <Button size="sm" variant="outline" onClick={refreshDebug}>Refresh</Button>
               </div>
             </div>
           )}
