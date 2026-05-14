@@ -107,6 +107,11 @@ function Page() {
   const [integrations, setIntegrations] = useState<Integration[]>(INITIAL);
   const [webhookActive, setWebhookActive] = useState(true);
   const [testing, setTesting] = useState(false);
+  const [debug, setDebug] = useState<{
+    status: number | string;
+    ok: boolean;
+    body: string;
+  } | null>(null);
   const sendTest = useServerFn(sendTestLeadWebhook);
 
   const toggle = (id: string) => {
@@ -140,20 +145,28 @@ function Page() {
 
   const onTestWebhook = async () => {
     setTesting(true);
+    setDebug(null);
     try {
       const result = await sendTest();
+      setDebug({
+        status: result.status,
+        ok: result.ok,
+        body: result.ok ? (result.response ?? "") : (result.error ?? ""),
+      });
       if (result.ok) {
         toast.success("Test lead sent — check the Leads page", {
           description: "A sample lead was delivered through the webhook.",
         });
       } else {
-        toast.error("Webhook test failed", {
-          description: result.error || `Status ${result.status}`,
+        toast.error(`Webhook test failed (status ${result.status})`, {
+          description: result.error || "Unknown error",
         });
       }
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setDebug({ status: "n/a", ok: false, body: msg });
       toast.error("Webhook test failed", {
-        description: e instanceof Error ? e.message : "Unknown error",
+        description: msg,
       });
     } finally {
       setTesting(false);
@@ -339,6 +352,28 @@ X-Webhook-Secret: <your secret>
             <WebhookStat label="Success rate (24h)" value="99.8%" tone="success" />
             <WebhookStat label="Failed (24h)" value="1" tone="warning" />
           </div>
+
+          {debug && (
+            <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                Last test result
+              </Label>
+              <div
+                className={cn(
+                  "rounded-md border p-3 text-xs font-mono",
+                  debug.ok
+                    ? "border-success/30 bg-success/5"
+                    : "border-destructive/30 bg-destructive/5",
+                )}
+              >
+                <div className="mb-1">
+                  <span className="text-muted-foreground">Status: </span>
+                  {String(debug.status)} {debug.ok ? "OK" : "FAIL"}
+                </div>
+                <pre className="overflow-x-auto whitespace-pre-wrap break-all">{debug.body || "(empty body)"}</pre>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
