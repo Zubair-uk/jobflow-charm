@@ -16,13 +16,16 @@ const json = (body: unknown, status = 200) =>
 
 const STATUSES = ["New", "Qualified", "Follow-up", "Closed"] as const;
 
+const HARDCODED_USER_ID = "7d21c6fb-09bf-47e0-b424-75838ac73a30";
+
 const LeadSchema = z.object({
-  user_id: z.string().uuid(),
   full_name: z.string().trim().min(1).max(200),
   email: z.string().trim().email().max(255).optional().nullable(),
   phone: z.string().trim().max(40).optional().nullable(),
   property_interest: z.string().trim().max(500).optional().nullable(),
   lead_source: z.string().trim().max(100).optional().nullable(),
+  source: z.string().trim().max(100).optional().nullable(),
+  message: z.string().trim().max(5000).optional().nullable(),
   status: z.enum(STATUSES).optional().default("New"),
   ai_reply: z.string().trim().max(5000).optional().nullable(),
   created_at: z.string().datetime().optional(),
@@ -60,14 +63,16 @@ export const Route = createFileRoute("/api/public/leads-webhook")({
 
         const d = parsed.data;
         const insert = {
-          user_id: d.user_id,
+          user_id: HARDCODED_USER_ID,
           full_name: d.full_name,
           name: d.full_name,
           email: d.email ?? null,
           phone: d.phone ?? null,
           property_interest: d.property_interest ?? null,
           property: d.property_interest ?? null,
-          lead_source: d.lead_source ?? null,
+          lead_source: d.lead_source ?? d.source ?? null,
+          message: d.message ?? null,
+          notes: d.message ?? null,
           status: d.status ?? "New",
           ai_reply: d.ai_reply ?? null,
           ...(d.created_at ? { created_at: d.created_at } : {}),
@@ -83,7 +88,7 @@ export const Route = createFileRoute("/api/public/leads-webhook")({
           return json({ error: error.message }, 500);
         }
 
-        return json({ success: true, lead: data }, 201);
+        return json({ success: true, lead_id: data.id }, 201);
       },
     },
   },
