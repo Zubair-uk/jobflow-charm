@@ -374,6 +374,11 @@ X-Webhook-Secret: <your secret>
                   <span className="text-muted-foreground">Status: </span>
                   {String(debug.status)} {debug.ok ? "OK" : "FAIL"}
                 </div>
+                {debug.url && (
+                  <div className="mb-1 text-muted-foreground">
+                    URL: <span className="text-foreground">{debug.url}</span>
+                  </div>
+                )}
                 <pre className="overflow-x-auto whitespace-pre-wrap break-all">{debug.body || "(empty body)"}</pre>
               </div>
             </div>
