@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { getRequestHost } from "@tanstack/react-start/server";
+import { getRequest } from "@tanstack/react-start/server";
 
 export const sendTestLeadWebhook = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -10,8 +10,14 @@ export const sendTestLeadWebhook = createServerFn({ method: "POST" })
       return { ok: false, status: 500, error: "Webhook secret not configured" };
     }
 
-    const host = getRequestHost();
-    const url = `https://${host}/api/public/leads-webhook`;
+    const req = getRequest();
+    const reqUrl = new URL(req.url);
+    // Localhost dev server doesn't serve https — use the incoming protocol.
+    const protocol =
+      reqUrl.hostname === "localhost" || reqUrl.hostname === "127.0.0.1"
+        ? "http:"
+        : "https:";
+    const url = `${protocol}//${reqUrl.host}/api/public/leads-webhook`;
 
     const payload = {
       user_id: context.userId,
@@ -25,18 +31,25 @@ export const sendTestLeadWebhook = createServerFn({ method: "POST" })
         "Thank you for your enquiry. One of our team will contact you shortly.",
     };
 
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Webhook-Secret": secret,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const text = await res.text();
-    if (!res.ok) {
-      return { ok: false, status: res.status, error: text };
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Webhook-Secret": secret,
+        },
+        body: JSON.stringify(payload),
+      });
+      const text = await res.text();
+      if (!res.ok) {
+        return { ok: false, status: res.status, error: text };
+      }
+      return { ok: true, status: res.status, response: text };
+    } catch (e) {
+      return {
+        ok: false,
+        status: 0,
+        error: `fetch ${url} failed: ${e instanceof Error ? e.message : String(e)}`,
+      };
     }
-    return { ok: true, status: res.status, response: text };
   });
