@@ -79,14 +79,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
+      { title: "JobFlow AI" },
+      { name: "description", content: "AI lead capture and auto-reply platform for estate agents." },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { property: "og:title", content: "JobFlow AI" },
+      { property: "og:description", content: "AI lead capture and auto-reply platform for estate agents." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "JobFlow AI" },
+      { name: "twitter:description", content: "AI lead capture and auto-reply platform for estate agents." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/6d6503c7-5c78-4f86-b6bf-a5bbe4e66003/id-preview-e0967dec--becc696a-ae96-46e1-8c24-2694ef9c4b86.lovable.app-1778769551084.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/6d6503c7-5c78-4f86-b6bf-a5bbe4e66003/id-preview-e0967dec--becc696a-ae96-46e1-8c24-2694ef9c4b86.lovable.app-1778769551084.png" },
     ],
     links: [
       {
