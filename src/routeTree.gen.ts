@@ -13,6 +13,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as LeadsRouteImport } from './routes/leads'
 import { Route as IntegrationsRouteImport } from './routes/integrations'
 import { Route as BillingRouteImport } from './routes/billing'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AiRepliesRouteImport } from './routes/ai-replies'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -36,6 +37,11 @@ const BillingRoute = BillingRouteImport.update({
   path: '/billing',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AiRepliesRoute = AiRepliesRouteImport.update({
   id: '/ai-replies',
   path: '/ai-replies',
@@ -50,6 +56,7 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/ai-replies': typeof AiRepliesRoute
+  '/auth': typeof AuthRoute
   '/billing': typeof BillingRoute
   '/integrations': typeof IntegrationsRoute
   '/leads': typeof LeadsRoute
@@ -58,6 +65,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ai-replies': typeof AiRepliesRoute
+  '/auth': typeof AuthRoute
   '/billing': typeof BillingRoute
   '/integrations': typeof IntegrationsRoute
   '/leads': typeof LeadsRoute
@@ -67,6 +75,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/ai-replies': typeof AiRepliesRoute
+  '/auth': typeof AuthRoute
   '/billing': typeof BillingRoute
   '/integrations': typeof IntegrationsRoute
   '/leads': typeof LeadsRoute
@@ -77,6 +86,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/ai-replies'
+    | '/auth'
     | '/billing'
     | '/integrations'
     | '/leads'
@@ -85,6 +95,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/ai-replies'
+    | '/auth'
     | '/billing'
     | '/integrations'
     | '/leads'
@@ -93,6 +104,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/ai-replies'
+    | '/auth'
     | '/billing'
     | '/integrations'
     | '/leads'
@@ -102,6 +114,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AiRepliesRoute: typeof AiRepliesRoute
+  AuthRoute: typeof AuthRoute
   BillingRoute: typeof BillingRoute
   IntegrationsRoute: typeof IntegrationsRoute
   LeadsRoute: typeof LeadsRoute
@@ -138,6 +151,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BillingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/ai-replies': {
       id: '/ai-replies'
       path: '/ai-replies'
@@ -158,6 +178,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AiRepliesRoute: AiRepliesRoute,
+  AuthRoute: AuthRoute,
   BillingRoute: BillingRoute,
   IntegrationsRoute: IntegrationsRoute,
   LeadsRoute: LeadsRoute,
