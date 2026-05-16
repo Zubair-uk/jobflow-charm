@@ -46,22 +46,21 @@ export const sendTestLeadWebhook = createServerFn({ method: "POST" })
 export const getLeadsDebugInfo = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const [{ count: totalCount }, { count: mineCount }, { data: recent }] =
-      await Promise.all([
-        supabaseAdmin.from("leads").select("*", { count: "exact", head: true }),
-        supabaseAdmin
-          .from("leads")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", context.userId),
-        supabaseAdmin
-          .from("leads")
-          .select("id, user_id, full_name, email, created_at")
-          .order("created_at", { ascending: false })
-          .limit(5),
-      ]);
+    // Scope every query to the calling user. Never return cross-user counts or rows.
+    const [{ count: mineCount }, { data: recent }] = await Promise.all([
+      supabaseAdmin
+        .from("leads")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", context.userId),
+      supabaseAdmin
+        .from("leads")
+        .select("id, full_name, email, created_at")
+        .eq("user_id", context.userId)
+        .order("created_at", { ascending: false })
+        .limit(5),
+    ]);
     return {
       userId: context.userId,
-      totalCount: totalCount ?? 0,
       mineCount: mineCount ?? 0,
       recent: recent ?? [],
     };

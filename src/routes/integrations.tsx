@@ -114,9 +114,8 @@ function Page() {
   } | null>(null);
   const [adminDebug, setAdminDebug] = useState<{
     userId: string;
-    totalCount: number;
     mineCount: number;
-    recent: Array<{ id: string; user_id: string; full_name: string | null; email: string | null; created_at: string }>;
+    recent: Array<{ id: string; full_name: string | null; email: string | null; created_at: string }>;
   } | null>(null);
   const sendTest = useServerFn(sendTestLeadWebhook);
   const fetchDebug = useServerFn(getLeadsDebugInfo);
@@ -400,13 +399,12 @@ X-Webhook-Secret: <your secret>
           {adminDebug && (
             <div className="space-y-2">
               <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-                Admin debug (bypasses RLS)
+                Your account debug info
               </Label>
               <div className="rounded-md border border-border bg-muted/30 p-3 text-xs font-mono space-y-1">
                 <div><span className="text-muted-foreground">Auth user_id: </span>{adminDebug.userId}</div>
-                <div><span className="text-muted-foreground">Total leads in DB: </span>{adminDebug.totalCount}</div>
                 <div><span className="text-muted-foreground">Leads owned by you: </span>{adminDebug.mineCount}</div>
-                <div className="pt-1 text-muted-foreground">Recent rows:</div>
+                <div className="pt-1 text-muted-foreground">Your recent leads:</div>
                 <pre className="overflow-x-auto whitespace-pre-wrap break-all">{JSON.stringify(adminDebug.recent, null, 2)}</pre>
                 <Button size="sm" variant="outline" onClick={refreshDebug}>Refresh</Button>
               </div>
