@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
-import { Sparkles, Mail, Lock, Loader2 } from "lucide-react";
+import { Sparkles, Mail, Lock, Loader2, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,6 +26,7 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [company, setCompany] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -42,7 +43,7 @@ function AuthPage() {
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/`,
-            data: { display_name: name },
+            data: { display_name: name, company_name: company },
           },
         });
         if (error) throw error;
@@ -117,10 +118,19 @@ function AuthPage() {
 
           <form onSubmit={onSubmit} className="space-y-4">
             {mode === "signup" && (
-              <div className="space-y-1.5">
-                <Label htmlFor="name">Name</Label>
-                <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Doe" required />
-              </div>
+              <>
+                <div className="space-y-1.5">
+                  <Label htmlFor="name">Your name</Label>
+                  <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Doe" required />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="company">Company name</Label>
+                  <div className="relative">
+                    <Building2 className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input id="company" className="pl-9" value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Acme Property Co." required />
+                  </div>
+                </div>
+              </>
             )}
             <div className="space-y-1.5">
               <Label htmlFor="email">Email</Label>
@@ -141,6 +151,14 @@ function AuthPage() {
               {mode === "signin" ? "Sign in" : "Create account"}
             </Button>
           </form>
+
+          {mode === "signin" && (
+            <p className="text-xs text-center mt-3">
+              <Link to="/forgot-password" className="text-muted-foreground hover:text-foreground">
+                Forgot your password?
+              </Link>
+            </p>
+          )}
 
           <p className="text-sm text-center text-muted-foreground mt-5">
             {mode === "signin" ? (
