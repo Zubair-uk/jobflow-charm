@@ -146,12 +146,13 @@ function AppShell() {
     pathname === "/reset-password" ||
     pathname === "/accept-invite";
   const isOnboarding = pathname === "/onboarding";
+  const isLanding = pathname === "/";
 
   useEffect(() => {
-    if (!loading && !session && !isPublicRoute) {
+    if (!loading && !session && !isPublicRoute && !isLanding) {
       navigate({ to: "/auth" });
     }
-  }, [loading, session, isPublicRoute, navigate]);
+  }, [loading, session, isPublicRoute, isLanding, navigate]);
 
   useEffect(() => {
     if (loading || orgLoading || !session) return;
@@ -164,6 +165,10 @@ function AppShell() {
   }, [loading, orgLoading, session, membership, isOnboarding, isPublicRoute, navigate]);
 
   if (isPublicRoute) return <Outlet />;
+
+  if (isLanding && !session) {
+    return <Outlet />;
+  }
 
   if (loading || !session) {
     return <div className="min-h-screen flex items-center justify-center bg-background text-sm text-muted-foreground">Loading…</div>;
