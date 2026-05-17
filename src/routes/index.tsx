@@ -25,6 +25,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { statusVariant, type Lead } from "./leads";
+import { TrialBanner } from "@/components/trial-banner";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -402,6 +403,7 @@ function Dashboard() {
 
   return (
     <div className="space-y-6">
+      <TrialBanner />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Dashboard</h1>
         <p className="text-sm text-muted-foreground mt-1">Welcome back. Here's how your pipeline is performing.</p>

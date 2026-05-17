@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Check, Sparkles } from "lucide-react";
+import { Check, Sparkles, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
+import { useOrg } from "@/hooks/use-org";
 
 export const Route = createFileRoute("/billing")({
   head: () => ({
@@ -21,6 +23,15 @@ const features = [
 ];
 
 function Page() {
+  const { plan, trialDaysRemaining, isTrialExpired, trialEndsAt } = useOrg();
+  const onUpgrade = () => {
+    toast.info("Stripe checkout coming soon. We'll email you when it's live.");
+  };
+  const planLabel = plan === "free_trial" ? "Free Trial" : plan ?? "—";
+  const planBadge = isTrialExpired
+    ? { className: "bg-destructive/10 text-destructive border-destructive/20", text: "Expired" }
+    : { className: "bg-info/10 text-info border-info/20", text: "Active" };
+
   return (
     <div className="space-y-6">
       <div>
@@ -33,9 +44,17 @@ function Page() {
           <div>
             <p className="text-xs uppercase tracking-wider text-muted-foreground">Current plan</p>
             <div className="flex items-center gap-2 mt-1">
-              <h2 className="text-xl font-semibold text-foreground">Free Trial</h2>
-              <Badge variant="outline" className="bg-info/10 text-info border-info/20">Active</Badge>
+              <h2 className="text-xl font-semibold text-foreground">{planLabel}</h2>
+              <Badge variant="outline" className={planBadge.className}>{planBadge.text}</Badge>
             </div>
+            {plan === "free_trial" && trialEndsAt && (
+              <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1.5">
+                <Clock className="h-3 w-3" />
+                {isTrialExpired
+                  ? `Trial ended ${trialEndsAt.toLocaleDateString()}`
+                  : `${trialDaysRemaining} day${trialDaysRemaining === 1 ? "" : "s"} remaining (ends ${trialEndsAt.toLocaleDateString()})`}
+              </p>
+            )}
           </div>
           <p className="text-sm text-muted-foreground">Upgrade to unlock unlimited usage.</p>
         </div>
@@ -51,7 +70,7 @@ function Page() {
             </div>
             <h3 className="text-2xl font-semibold text-foreground">Starter Plan</h3>
             <div className="mt-3 flex items-baseline gap-1">
-              <span className="text-4xl font-bold text-foreground">£49</span>
+              <span className="text-4xl font-bold text-foreground">£99</span>
               <span className="text-sm text-muted-foreground">/month</span>
             </div>
             <p className="text-sm text-muted-foreground mt-2">
@@ -67,8 +86,8 @@ function Page() {
                 </li>
               ))}
             </ul>
-            <Button className="w-full mt-6" disabled>
-              Stripe coming soon
+            <Button className="w-full mt-6" onClick={onUpgrade}>
+              Upgrade to Starter
             </Button>
           </div>
         </div>
