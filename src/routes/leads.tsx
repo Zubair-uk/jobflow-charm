@@ -43,7 +43,7 @@ export const Route = createFileRoute("/leads")({
   component: LeadsPage,
 });
 
-export const STATUSES = ["New", "Contacted", "Viewing Booked", "Closed", "Lost"] as const;
+export const STATUSES = ["New", "Contacted", "Viewing Booked", "Closed", "Lost", "Test/Demo"] as const;
 export type Status = (typeof STATUSES)[number];
 
 export type Lead = {
