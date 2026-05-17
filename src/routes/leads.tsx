@@ -4,6 +4,7 @@ import { Search, Loader2, Users, Sparkles, Mail, Phone, Calendar, Home, Tag } fr
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useOrg } from "@/hooks/use-org";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -66,6 +67,7 @@ export function statusVariant(status: string) {
 
 function LeadsPage() {
   const { user } = useAuth();
+  const { orgId } = useOrg();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -90,12 +92,12 @@ function LeadsPage() {
   }, [user]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !orgId) return;
     const channel = supabase
       .channel("leads-changes")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "leads", filter: `user_id=eq.${user.id}` },
+        { event: "*", schema: "public", table: "leads", filter: `organization_id=eq.${orgId}` },
         (payload) => {
           setLeads((prev) => {
             if (payload.eventType === "INSERT") {
@@ -118,7 +120,7 @@ function LeadsPage() {
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [user]);
+  }, [user, orgId]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();

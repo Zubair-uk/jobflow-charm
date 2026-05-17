@@ -13,6 +13,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Bell, Search, LogOut } from "lucide-react";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
+import { OrgProvider, useOrg } from "@/hooks/use-org";
 import { Toaster } from "@/components/ui/sonner";
 import { useEffect } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
@@ -125,8 +126,10 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <AppShell />
-        <Toaster />
+        <OrgProvider>
+          <AppShell />
+          <Toaster />
+        </OrgProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
@@ -134,20 +137,48 @@ function RootComponent() {
 
 function AppShell() {
   const { session, loading, user, signOut } = useAuth();
+  const { membership, loading: orgLoading } = useOrg();
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const navigate = useNavigate();
-  const isAuthRoute = pathname === "/auth";
+  const isPublicRoute =
+    pathname === "/auth" ||
+    pathname === "/forgot-password" ||
+    pathname === "/reset-password" ||
+    pathname === "/accept-invite";
+  const isOnboarding = pathname === "/onboarding";
 
   useEffect(() => {
-    if (!loading && !session && !isAuthRoute) {
+    if (!loading && !session && !isPublicRoute) {
       navigate({ to: "/auth" });
     }
-  }, [loading, session, isAuthRoute, navigate]);
+  }, [loading, session, isPublicRoute, navigate]);
 
-  if (isAuthRoute) return <Outlet />;
+  useEffect(() => {
+    if (loading || orgLoading || !session) return;
+    if (!membership && !isOnboarding && !isPublicRoute) {
+      navigate({ to: "/onboarding" });
+    }
+    if (membership && isOnboarding) {
+      navigate({ to: "/" });
+    }
+  }, [loading, orgLoading, session, membership, isOnboarding, isPublicRoute, navigate]);
+
+  if (isPublicRoute) return <Outlet />;
 
   if (loading || !session) {
     return <div className="min-h-screen flex items-center justify-center bg-background text-sm text-muted-foreground">Loading…</div>;
+  }
+
+  if (isOnboarding) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Outlet />
+      </div>
+    );
+  }
+
+  if (orgLoading || !membership) {
+    return <div className="min-h-screen flex items-center justify-center bg-background text-sm text-muted-foreground">Loading workspace…</div>;
   }
 
   const initials = (user?.user_metadata?.display_name || user?.email || "U")

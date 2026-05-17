@@ -10,17 +10,31 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LeadsRouteImport } from './routes/leads'
 import { Route as IntegrationsRouteImport } from './routes/integrations'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as BillingRouteImport } from './routes/billing'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AiRepliesRouteImport } from './routes/ai-replies'
+import { Route as AcceptInviteRouteImport } from './routes/accept-invite'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiPublicLeadsWebhookRouteImport } from './routes/api/public/leads-webhook'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LeadsRoute = LeadsRouteImport.update({
@@ -31,6 +45,11 @@ const LeadsRoute = LeadsRouteImport.update({
 const IntegrationsRoute = IntegrationsRouteImport.update({
   id: '/integrations',
   path: '/integrations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BillingRoute = BillingRouteImport.update({
@@ -48,6 +67,11 @@ const AiRepliesRoute = AiRepliesRouteImport.update({
   path: '/ai-replies',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AcceptInviteRoute = AcceptInviteRouteImport.update({
+  id: '/accept-invite',
+  path: '/accept-invite',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -61,32 +85,44 @@ const ApiPublicLeadsWebhookRoute = ApiPublicLeadsWebhookRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/accept-invite': typeof AcceptInviteRoute
   '/ai-replies': typeof AiRepliesRoute
   '/auth': typeof AuthRoute
   '/billing': typeof BillingRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/integrations': typeof IntegrationsRoute
   '/leads': typeof LeadsRoute
+  '/onboarding': typeof OnboardingRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/api/public/leads-webhook': typeof ApiPublicLeadsWebhookRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/accept-invite': typeof AcceptInviteRoute
   '/ai-replies': typeof AiRepliesRoute
   '/auth': typeof AuthRoute
   '/billing': typeof BillingRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/integrations': typeof IntegrationsRoute
   '/leads': typeof LeadsRoute
+  '/onboarding': typeof OnboardingRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/api/public/leads-webhook': typeof ApiPublicLeadsWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/accept-invite': typeof AcceptInviteRoute
   '/ai-replies': typeof AiRepliesRoute
   '/auth': typeof AuthRoute
   '/billing': typeof BillingRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/integrations': typeof IntegrationsRoute
   '/leads': typeof LeadsRoute
+  '/onboarding': typeof OnboardingRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/api/public/leads-webhook': typeof ApiPublicLeadsWebhookRoute
 }
@@ -94,42 +130,58 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/accept-invite'
     | '/ai-replies'
     | '/auth'
     | '/billing'
+    | '/forgot-password'
     | '/integrations'
     | '/leads'
+    | '/onboarding'
+    | '/reset-password'
     | '/settings'
     | '/api/public/leads-webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/accept-invite'
     | '/ai-replies'
     | '/auth'
     | '/billing'
+    | '/forgot-password'
     | '/integrations'
     | '/leads'
+    | '/onboarding'
+    | '/reset-password'
     | '/settings'
     | '/api/public/leads-webhook'
   id:
     | '__root__'
     | '/'
+    | '/accept-invite'
     | '/ai-replies'
     | '/auth'
     | '/billing'
+    | '/forgot-password'
     | '/integrations'
     | '/leads'
+    | '/onboarding'
+    | '/reset-password'
     | '/settings'
     | '/api/public/leads-webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AcceptInviteRoute: typeof AcceptInviteRoute
   AiRepliesRoute: typeof AiRepliesRoute
   AuthRoute: typeof AuthRoute
   BillingRoute: typeof BillingRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   IntegrationsRoute: typeof IntegrationsRoute
   LeadsRoute: typeof LeadsRoute
+  OnboardingRoute: typeof OnboardingRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   SettingsRoute: typeof SettingsRoute
   ApiPublicLeadsWebhookRoute: typeof ApiPublicLeadsWebhookRoute
 }
@@ -141,6 +193,20 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/leads': {
@@ -155,6 +221,13 @@ declare module '@tanstack/react-router' {
       path: '/integrations'
       fullPath: '/integrations'
       preLoaderRoute: typeof IntegrationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/billing': {
@@ -178,6 +251,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AiRepliesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/accept-invite': {
+      id: '/accept-invite'
+      path: '/accept-invite'
+      fullPath: '/accept-invite'
+      preLoaderRoute: typeof AcceptInviteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -197,11 +277,15 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AcceptInviteRoute: AcceptInviteRoute,
   AiRepliesRoute: AiRepliesRoute,
   AuthRoute: AuthRoute,
   BillingRoute: BillingRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   IntegrationsRoute: IntegrationsRoute,
   LeadsRoute: LeadsRoute,
+  OnboardingRoute: OnboardingRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   SettingsRoute: SettingsRoute,
   ApiPublicLeadsWebhookRoute: ApiPublicLeadsWebhookRoute,
 }

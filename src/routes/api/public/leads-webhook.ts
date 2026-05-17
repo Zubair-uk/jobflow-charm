@@ -16,6 +16,20 @@ const json = (body: unknown, status = 200) =>
 
 const HARDCODED_USER_ID = "7d21c6fb-09bf-47e0-b424-75838ac73a30";
 
+let cachedOrgId: string | null = null;
+async function getWebhookOrgId(): Promise<string | null> {
+  if (cachedOrgId) return cachedOrgId;
+  const { data } = await supabaseAdmin
+    .from("organization_members")
+    .select("organization_id")
+    .eq("user_id", HARDCODED_USER_ID)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  cachedOrgId = data?.organization_id ?? null;
+  return cachedOrgId;
+}
+
 // Accept a loose payload so we can map common aliases from n8n / external sources.
 const str = (max: number) => z.string().trim().max(max).optional().nullable();
 const LeadSchema = z
@@ -80,6 +94,7 @@ export const Route = createFileRoute("/api/public/leads-webhook")({
 
         const insert = {
           user_id: HARDCODED_USER_ID,
+          organization_id: await getWebhookOrgId(),
           full_name: fullName,
           name: fullName,
           email,

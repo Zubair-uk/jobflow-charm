@@ -19,6 +19,15 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useOrg } from "@/hooks/use-org";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  listTeam,
+  inviteTeammate,
+  updateMemberRole,
+  removeMember as removeMemberFn,
+  revokeInvite,
+} from "@/lib/org.functions";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,7 +85,9 @@ type NotificationSettings = {
   daily_summary: boolean;
 };
 
-type TeamMember = { email: string; role: "Admin" | "Agent" | "Staff" };
+type OrgRole = "admin" | "agent" | "staff";
+type TeamMemberRow = { id: string; user_id: string; email: string | null; name: string | null; role: OrgRole };
+type InviteRow = { id: string; email: string; role: OrgRole; token: string; expires_at: string };
 
 const defaultCompany: CompanySettings = {
   company_name: "",
@@ -99,6 +110,7 @@ const defaultNotifications: NotificationSettings = {
 
 function Page() {
   const { user, signOut } = useAuth();
+  const { orgId, isAdmin, role: myRole, membership } = useOrg();
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
@@ -109,9 +121,17 @@ function Page() {
   const [company, setCompany] = useState<CompanySettings>(defaultCompany);
   const [ai, setAI] = useState<AISettings>(defaultAI);
   const [notifications, setNotifications] = useState<NotificationSettings>(defaultNotifications);
-  const [team, setTeam] = useState<TeamMember[]>([]);
+  const [team, setTeam] = useState<TeamMemberRow[]>([]);
+  const [invites, setInvites] = useState<InviteRow[]>([]);
+  const [teamLoading, setTeamLoading] = useState(false);
   const [newMemberEmail, setNewMemberEmail] = useState("");
-  const [newMemberRole, setNewMemberRole] = useState<TeamMember["role"]>("Agent");
+  const [newMemberRole, setNewMemberRole] = useState<OrgRole>("agent");
+
+  const fetchTeam = useServerFn(listTeam);
+  const inviteFn = useServerFn(inviteTeammate);
+  const updateRoleFn = useServerFn(updateMemberRole);
+  const removeMemberSrv = useServerFn(removeMemberFn);
+  const revokeInviteFn = useServerFn(revokeInvite);
 
   const webhookUrl = useMemo(
     () =>
@@ -137,13 +157,30 @@ function Page() {
           if (row.key === "ai") setAI({ ...defaultAI, ...(v as Partial<AISettings>) });
           if (row.key === "notifications")
             setNotifications({ ...defaultNotifications, ...(v as Partial<NotificationSettings>) });
-          if (row.key === "team" && Array.isArray((v as { members?: TeamMember[] }).members))
-            setTeam((v as { members: TeamMember[] }).members);
         }
       }
       setLoading(false);
     })();
   }, [user]);
+
+  const reloadTeam = async () => {
+    if (!orgId) return;
+    setTeamLoading(true);
+    try {
+      const res = await fetchTeam({ data: { orgId } });
+      setTeam(res.members);
+      setInvites(res.invites as InviteRow[]);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not load team");
+    } finally {
+      setTeamLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void reloadTeam();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId]);
 
   const saveKey = async (key: string, value: unknown) => {
     if (!user) return { error: new Error("Not signed in") };
@@ -172,7 +209,6 @@ function Page() {
       saveKey("company", company),
       saveKey("ai", ai),
       saveKey("notifications", notifications),
-      saveKey("team", { members: team }),
     ]);
     const err = results.find((r) => r.error);
     setSaving(false);
@@ -206,22 +242,63 @@ function Page() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const addMember = () => {
+  const inviteMember = async () => {
+    if (!orgId) return;
     const email = newMemberEmail.trim();
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       toast.error("Enter a valid email");
       return;
     }
-    if (team.some((m) => m.email.toLowerCase() === email.toLowerCase())) {
-      toast.error("That member is already added");
-      return;
+    try {
+      const invite = await inviteFn({ data: { orgId, email, role: newMemberRole } });
+      const link = `${window.location.origin}/accept-invite?token=${invite.token}`;
+      await navigator.clipboard.writeText(link).catch(() => {});
+      toast.success("Invite created — link copied to clipboard");
+      setNewMemberEmail("");
+      await reloadTeam();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not create invite");
     }
-    setTeam((t) => [...t, { email, role: newMemberRole }]);
-    setNewMemberEmail("");
   };
 
-  const removeMember = (email: string) =>
-    setTeam((t) => t.filter((m) => m.email !== email));
+  const changeRole = async (memberId: string, role: OrgRole) => {
+    if (!orgId) return;
+    try {
+      await updateRoleFn({ data: { orgId, memberId, role } });
+      toast.success("Role updated");
+      await reloadTeam();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not update role");
+    }
+  };
+
+  const removeTeamMember = async (memberId: string) => {
+    if (!orgId) return;
+    try {
+      await removeMemberSrv({ data: { orgId, memberId } });
+      toast.success("Member removed");
+      await reloadTeam();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not remove member");
+    }
+  };
+
+  const cancelInvite = async (inviteId: string) => {
+    if (!orgId) return;
+    try {
+      await revokeInviteFn({ data: { orgId, inviteId } });
+      toast.success("Invite revoked");
+      await reloadTeam();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not revoke invite");
+    }
+  };
+
+  const copyInviteLink = async (token: string) => {
+    const link = `${window.location.origin}/accept-invite?token=${token}`;
+    await navigator.clipboard.writeText(link);
+    toast.success("Invite link copied");
+  };
 
   const handlePasswordChange = async () => {
     if (!user?.email) return;
@@ -428,44 +505,103 @@ function Page() {
       </Section>
 
       {/* Team */}
-      <Section icon={<Users className="h-4 w-4" />} title="Team" description="Invite teammates and set their access level.">
-        <div className="space-y-3">
-          <div className="grid gap-2 md:grid-cols-[1fr_180px_auto]">
-            <Input
-              type="email"
-              placeholder="teammate@company.com"
-              value={newMemberEmail}
-              onChange={(e) => setNewMemberEmail(e.target.value)}
-            />
-            <Select value={newMemberRole} onValueChange={(v) => setNewMemberRole(v as TeamMember["role"])}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Admin">Admin</SelectItem>
-                <SelectItem value="Agent">Agent</SelectItem>
-                <SelectItem value="Staff">Staff</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button onClick={addMember}>
-              <Plus className="h-4 w-4" /> Add
-            </Button>
+      <Section
+        icon={<Users className="h-4 w-4" />}
+        title="Team"
+        description={
+          membership?.organization?.name
+            ? `${membership.organization.name} · Your role: ${myRole}`
+            : "Invite teammates and set their access level."
+        }
+      >
+        <div className="space-y-4">
+          {isAdmin && (
+            <div className="grid gap-2 md:grid-cols-[1fr_180px_auto]">
+              <Input
+                type="email"
+                placeholder="teammate@company.com"
+                value={newMemberEmail}
+                onChange={(e) => setNewMemberEmail(e.target.value)}
+              />
+              <Select value={newMemberRole} onValueChange={(v) => setNewMemberRole(v as OrgRole)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="agent">Agent</SelectItem>
+                  <SelectItem value="staff">Staff</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button onClick={inviteMember}>
+                <Plus className="h-4 w-4" /> Invite
+              </Button>
+            </div>
+          )}
+
+          <div>
+            <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Members</p>
+            {teamLoading ? (
+              <p className="text-xs text-muted-foreground py-2 flex items-center gap-2">
+                <Loader2 className="h-3 w-3 animate-spin" /> Loading…
+              </p>
+            ) : team.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-2">No members yet.</p>
+            ) : (
+              <ul className="divide-y divide-border rounded-lg border border-border overflow-hidden">
+                {team.map((m) => (
+                  <li key={m.id} className="flex items-center justify-between gap-2 px-4 py-3 bg-card">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {m.name || m.email || m.user_id}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">{m.email}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {isAdmin && m.user_id !== user?.id ? (
+                        <Select value={m.role} onValueChange={(v) => changeRole(m.id, v as OrgRole)}>
+                          <SelectTrigger className="h-8 w-28"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="admin">Admin</SelectItem>
+                            <SelectItem value="agent">Agent</SelectItem>
+                            <SelectItem value="staff">Staff</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Badge variant="outline" className="capitalize">{m.role}</Badge>
+                      )}
+                      {isAdmin && m.user_id !== user?.id && (
+                        <Button variant="ghost" size="icon" onClick={() => removeTeamMember(m.id)} aria-label="Remove">
+                          <Trash2 className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
-          {team.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-2">No teammates yet.</p>
-          ) : (
-            <ul className="divide-y divide-border rounded-lg border border-border overflow-hidden">
-              {team.map((m) => (
-                <li key={m.email} className="flex items-center justify-between gap-2 px-4 py-3 bg-card">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{m.email}</p>
-                    <p className="text-xs text-muted-foreground">{m.role}</p>
-                  </div>
-                  <Button variant="ghost" size="icon" onClick={() => removeMember(m.email)} aria-label="Remove">
-                    <Trash2 className="h-4 w-4 text-muted-foreground" />
-                  </Button>
-                </li>
-              ))}
-            </ul>
+          {isAdmin && invites.length > 0 && (
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Pending invites</p>
+              <ul className="divide-y divide-border rounded-lg border border-border overflow-hidden">
+                {invites.map((inv) => (
+                  <li key={inv.id} className="flex items-center justify-between gap-2 px-4 py-3 bg-card">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{inv.email}</p>
+                      <p className="text-xs text-muted-foreground capitalize">{inv.role}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button variant="outline" size="sm" onClick={() => copyInviteLink(inv.token)}>
+                        <Copy className="h-3 w-3" /> Copy link
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => cancelInvite(inv.id)} aria-label="Revoke">
+                        <Trash2 className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </div>
       </Section>
