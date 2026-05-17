@@ -30,6 +30,17 @@ async function getWebhookOrgId(): Promise<string | null> {
   return cachedOrgId;
 }
 
+async function orgHasActiveAccess(orgId: string): Promise<boolean> {
+  const { data } = await supabaseAdmin
+    .from("organizations")
+    .select("plan, trial_ends_at")
+    .eq("id", orgId)
+    .maybeSingle();
+  if (!data) return false;
+  if (data.plan && data.plan !== "free_trial") return true;
+  return !!data.trial_ends_at && new Date(data.trial_ends_at).getTime() > Date.now();
+}
+
 // Accept a loose payload so we can map common aliases from n8n / external sources.
 const str = (max: number) => z.string().trim().max(max).optional().nullable();
 const LeadSchema = z
@@ -92,9 +103,20 @@ export const Route = createFileRoute("/api/public/leads-webhook")({
         const leadSource = pick(d.lead_source, d.source);
         const message = pick(d.message, d.notes);
 
+        const orgId = await getWebhookOrgId();
+        if (!orgId) {
+          return json({ error: "No organization found for webhook user" }, 500);
+        }
+        if (!(await orgHasActiveAccess(orgId))) {
+          return json(
+            { error: "Trial expired. Upgrade to resume webhook processing.", code: "trial_expired" },
+            402,
+          );
+        }
+
         const insert = {
           user_id: HARDCODED_USER_ID,
-          organization_id: await getWebhookOrgId(),
+          organization_id: orgId,
           full_name: fullName,
           name: fullName,
           email,
