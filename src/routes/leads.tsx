@@ -300,6 +300,15 @@ function LeadsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground bg-muted/40">
+                  {bulkMode && (
+                    <th className="px-2 py-3 w-10">
+                      <Checkbox
+                        checked={filtered.length > 0 && filtered.every((l) => selectedIds.has(l.id))}
+                        onCheckedChange={selectAllVisible}
+                        aria-label="Select all"
+                      />
+                    </th>
+                  )}
                   <th className="px-4 py-3 font-medium">Name</th>
                   <th className="px-4 py-3 font-medium">Contact</th>
                   <th className="px-4 py-3 font-medium hidden md:table-cell">Property</th>
@@ -307,15 +316,27 @@ function LeadsPage() {
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium hidden sm:table-cell">AI</th>
                   <th className="px-4 py-3 font-medium hidden md:table-cell">Created</th>
+                  <th className="px-4 py-3 font-medium w-10">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((lead) => (
                   <tr
                     key={lead.id}
-                    onClick={() => setSelected(lead)}
-                    className="border-t border-border hover:bg-muted/30 transition-colors cursor-pointer"
+                    onClick={() => !bulkMode && setSelected(lead)}
+                    className={`border-t border-border hover:bg-muted/30 transition-colors ${
+                      bulkMode ? "" : "cursor-pointer"
+                    }`}
                   >
+                    {bulkMode && (
+                      <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedIds.has(lead.id)}
+                          onCheckedChange={() => toggleSelect(lead.id)}
+                          aria-label={`Select ${lead.full_name ?? "lead"}`}
+                        />
+                      </td>
+                    )}
                     <td className="px-4 py-3 font-medium text-foreground">
                       {lead.full_name ?? "—"}
                     </td>
@@ -355,6 +376,15 @@ function LeadsPage() {
                     </td>
                     <td className="px-4 py-3 text-muted-foreground text-sm whitespace-nowrap hidden md:table-cell">
                       {new Date(lead.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => setDeletingId(lead.id)}
+                        className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        title="Delete lead"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </td>
                   </tr>
                 ))}
