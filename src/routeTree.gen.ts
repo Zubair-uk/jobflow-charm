@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LeadsRouteImport } from './routes/leads'
 import { Route as IntegrationsRouteImport } from './routes/integrations'
@@ -23,6 +24,11 @@ import { Route as ApiPublicLeadsWebhookRouteImport } from './routes/api/public/l
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OnboardingRoute = OnboardingRouteImport.update({
@@ -80,6 +86,7 @@ export interface FileRoutesByFullPath {
   '/integrations': typeof IntegrationsRoute
   '/leads': typeof LeadsRoute
   '/onboarding': typeof OnboardingRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/api/public/leads-webhook': typeof ApiPublicLeadsWebhookRoute
 }
@@ -92,6 +99,7 @@ export interface FileRoutesByTo {
   '/integrations': typeof IntegrationsRoute
   '/leads': typeof LeadsRoute
   '/onboarding': typeof OnboardingRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/api/public/leads-webhook': typeof ApiPublicLeadsWebhookRoute
 }
@@ -105,6 +113,7 @@ export interface FileRoutesById {
   '/integrations': typeof IntegrationsRoute
   '/leads': typeof LeadsRoute
   '/onboarding': typeof OnboardingRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/api/public/leads-webhook': typeof ApiPublicLeadsWebhookRoute
 }
@@ -119,6 +128,7 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/leads'
     | '/onboarding'
+    | '/reset-password'
     | '/settings'
     | '/api/public/leads-webhook'
   fileRoutesByTo: FileRoutesByTo
@@ -131,6 +141,7 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/leads'
     | '/onboarding'
+    | '/reset-password'
     | '/settings'
     | '/api/public/leads-webhook'
   id:
@@ -143,6 +154,7 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/leads'
     | '/onboarding'
+    | '/reset-password'
     | '/settings'
     | '/api/public/leads-webhook'
   fileRoutesById: FileRoutesById
@@ -156,6 +168,7 @@ export interface RootRouteChildren {
   IntegrationsRoute: typeof IntegrationsRoute
   LeadsRoute: typeof LeadsRoute
   OnboardingRoute: typeof OnboardingRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   SettingsRoute: typeof SettingsRoute
   ApiPublicLeadsWebhookRoute: typeof ApiPublicLeadsWebhookRoute
 }
@@ -167,6 +180,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/onboarding': {
@@ -244,6 +264,7 @@ const rootRouteChildren: RootRouteChildren = {
   IntegrationsRoute: IntegrationsRoute,
   LeadsRoute: LeadsRoute,
   OnboardingRoute: OnboardingRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   SettingsRoute: SettingsRoute,
   ApiPublicLeadsWebhookRoute: ApiPublicLeadsWebhookRoute,
 }
