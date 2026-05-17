@@ -19,6 +19,15 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useOrg } from "@/hooks/use-org";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  listTeam,
+  inviteTeammate,
+  updateMemberRole,
+  removeMember as removeMemberFn,
+  revokeInvite,
+} from "@/lib/org.functions";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,7 +85,9 @@ type NotificationSettings = {
   daily_summary: boolean;
 };
 
-type TeamMember = { email: string; role: "Admin" | "Agent" | "Staff" };
+type OrgRole = "admin" | "agent" | "staff";
+type TeamMemberRow = { id: string; user_id: string; email: string | null; name: string | null; role: OrgRole };
+type InviteRow = { id: string; email: string; role: OrgRole; token: string; expires_at: string };
 
 const defaultCompany: CompanySettings = {
   company_name: "",
@@ -99,6 +110,7 @@ const defaultNotifications: NotificationSettings = {
 
 function Page() {
   const { user, signOut } = useAuth();
+  const { orgId, isAdmin, role: myRole, membership } = useOrg();
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
@@ -109,9 +121,17 @@ function Page() {
   const [company, setCompany] = useState<CompanySettings>(defaultCompany);
   const [ai, setAI] = useState<AISettings>(defaultAI);
   const [notifications, setNotifications] = useState<NotificationSettings>(defaultNotifications);
-  const [team, setTeam] = useState<TeamMember[]>([]);
+  const [team, setTeam] = useState<TeamMemberRow[]>([]);
+  const [invites, setInvites] = useState<InviteRow[]>([]);
+  const [teamLoading, setTeamLoading] = useState(false);
   const [newMemberEmail, setNewMemberEmail] = useState("");
-  const [newMemberRole, setNewMemberRole] = useState<TeamMember["role"]>("Agent");
+  const [newMemberRole, setNewMemberRole] = useState<OrgRole>("agent");
+
+  const fetchTeam = useServerFn(listTeam);
+  const inviteFn = useServerFn(inviteTeammate);
+  const updateRoleFn = useServerFn(updateMemberRole);
+  const removeMemberSrv = useServerFn(removeMemberFn);
+  const revokeInviteFn = useServerFn(revokeInvite);
 
   const webhookUrl = useMemo(
     () =>
@@ -137,13 +157,30 @@ function Page() {
           if (row.key === "ai") setAI({ ...defaultAI, ...(v as Partial<AISettings>) });
           if (row.key === "notifications")
             setNotifications({ ...defaultNotifications, ...(v as Partial<NotificationSettings>) });
-          if (row.key === "team" && Array.isArray((v as { members?: TeamMember[] }).members))
-            setTeam((v as { members: TeamMember[] }).members);
         }
       }
       setLoading(false);
     })();
   }, [user]);
+
+  const reloadTeam = async () => {
+    if (!orgId) return;
+    setTeamLoading(true);
+    try {
+      const res = await fetchTeam({ data: { orgId } });
+      setTeam(res.members);
+      setInvites(res.invites as InviteRow[]);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not load team");
+    } finally {
+      setTeamLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void reloadTeam();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId]);
 
   const saveKey = async (key: string, value: unknown) => {
     if (!user) return { error: new Error("Not signed in") };
@@ -172,7 +209,6 @@ function Page() {
       saveKey("company", company),
       saveKey("ai", ai),
       saveKey("notifications", notifications),
-      saveKey("team", { members: team }),
     ]);
     const err = results.find((r) => r.error);
     setSaving(false);
@@ -206,22 +242,63 @@ function Page() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const addMember = () => {
+  const inviteMember = async () => {
+    if (!orgId) return;
     const email = newMemberEmail.trim();
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       toast.error("Enter a valid email");
       return;
     }
-    if (team.some((m) => m.email.toLowerCase() === email.toLowerCase())) {
-      toast.error("That member is already added");
-      return;
+    try {
+      const invite = await inviteFn({ data: { orgId, email, role: newMemberRole } });
+      const link = `${window.location.origin}/accept-invite?token=${invite.token}`;
+      await navigator.clipboard.writeText(link).catch(() => {});
+      toast.success("Invite created — link copied to clipboard");
+      setNewMemberEmail("");
+      await reloadTeam();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not create invite");
     }
-    setTeam((t) => [...t, { email, role: newMemberRole }]);
-    setNewMemberEmail("");
   };
 
-  const removeMember = (email: string) =>
-    setTeam((t) => t.filter((m) => m.email !== email));
+  const changeRole = async (memberId: string, role: OrgRole) => {
+    if (!orgId) return;
+    try {
+      await updateRoleFn({ data: { orgId, memberId, role } });
+      toast.success("Role updated");
+      await reloadTeam();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not update role");
+    }
+  };
+
+  const removeTeamMember = async (memberId: string) => {
+    if (!orgId) return;
+    try {
+      await removeMemberSrv({ data: { orgId, memberId } });
+      toast.success("Member removed");
+      await reloadTeam();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not remove member");
+    }
+  };
+
+  const cancelInvite = async (inviteId: string) => {
+    if (!orgId) return;
+    try {
+      await revokeInviteFn({ data: { orgId, inviteId } });
+      toast.success("Invite revoked");
+      await reloadTeam();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not revoke invite");
+    }
+  };
+
+  const copyInviteLink = async (token: string) => {
+    const link = `${window.location.origin}/accept-invite?token=${token}`;
+    await navigator.clipboard.writeText(link);
+    toast.success("Invite link copied");
+  };
 
   const handlePasswordChange = async () => {
     if (!user?.email) return;
