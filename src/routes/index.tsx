@@ -25,6 +25,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { statusVariant, type Lead } from "./leads";
+import { useOrg } from "@/hooks/use-org";
 import { TrialBanner } from "@/components/trial-banner";
 
 export const Route = createFileRoute("/")({
