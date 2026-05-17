@@ -240,7 +240,41 @@ function LeadsPage() {
             ))}
           </SelectContent>
         </Select>
+        <button
+          onClick={() => {
+            setBulkMode((v) => !v);
+            setSelectedIds(new Set());
+          }}
+          className={`inline-flex items-center justify-center rounded-md px-3 py-2 text-xs font-medium transition-colors border ${
+            bulkMode
+              ? "bg-primary text-primary-foreground border-primary"
+              : "bg-background text-foreground border-input hover:bg-accent"
+          }`}
+        >
+          {bulkMode ? "Done" : "Bulk actions"}
+        </button>
       </div>
+
+      {bulkMode && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2">
+          <Checkbox
+            checked={filtered.length > 0 && filtered.every((l) => selectedIds.has(l.id))}
+            onCheckedChange={selectAllVisible}
+            aria-label="Select all visible"
+          />
+          <span className="text-sm text-muted-foreground">
+            {selectedIds.size} selected
+          </span>
+          {selectedIds.size > 0 && (
+            <button
+              onClick={() => setShowBulkDeleteDialog(true)}
+              className="ml-auto inline-flex items-center gap-1.5 rounded-md bg-destructive px-3 py-1.5 text-xs font-medium text-destructive-foreground hover:bg-destructive/90 transition-colors"
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Delete selected
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="rounded-xl border border-border bg-card overflow-hidden">
         {loading ? (
