@@ -71,6 +71,8 @@ export function statusVariant(status: string) {
       return "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
     case "Lost":
       return "bg-muted text-muted-foreground border-border";
+    case "Test/Demo":
+      return "bg-purple-500/10 text-purple-500 border-purple-500/20";
     default:
       return "bg-primary/10 text-primary border-primary/20";
   }
