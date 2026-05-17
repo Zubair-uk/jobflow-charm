@@ -505,44 +505,103 @@ function Page() {
       </Section>
 
       {/* Team */}
-      <Section icon={<Users className="h-4 w-4" />} title="Team" description="Invite teammates and set their access level.">
-        <div className="space-y-3">
-          <div className="grid gap-2 md:grid-cols-[1fr_180px_auto]">
-            <Input
-              type="email"
-              placeholder="teammate@company.com"
-              value={newMemberEmail}
-              onChange={(e) => setNewMemberEmail(e.target.value)}
-            />
-            <Select value={newMemberRole} onValueChange={(v) => setNewMemberRole(v as TeamMember["role"])}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Admin">Admin</SelectItem>
-                <SelectItem value="Agent">Agent</SelectItem>
-                <SelectItem value="Staff">Staff</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button onClick={addMember}>
-              <Plus className="h-4 w-4" /> Add
-            </Button>
+      <Section
+        icon={<Users className="h-4 w-4" />}
+        title="Team"
+        description={
+          membership?.organization?.name
+            ? `${membership.organization.name} · Your role: ${myRole}`
+            : "Invite teammates and set their access level."
+        }
+      >
+        <div className="space-y-4">
+          {isAdmin && (
+            <div className="grid gap-2 md:grid-cols-[1fr_180px_auto]">
+              <Input
+                type="email"
+                placeholder="teammate@company.com"
+                value={newMemberEmail}
+                onChange={(e) => setNewMemberEmail(e.target.value)}
+              />
+              <Select value={newMemberRole} onValueChange={(v) => setNewMemberRole(v as OrgRole)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="agent">Agent</SelectItem>
+                  <SelectItem value="staff">Staff</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button onClick={inviteMember}>
+                <Plus className="h-4 w-4" /> Invite
+              </Button>
+            </div>
+          )}
+
+          <div>
+            <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Members</p>
+            {teamLoading ? (
+              <p className="text-xs text-muted-foreground py-2 flex items-center gap-2">
+                <Loader2 className="h-3 w-3 animate-spin" /> Loading…
+              </p>
+            ) : team.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-2">No members yet.</p>
+            ) : (
+              <ul className="divide-y divide-border rounded-lg border border-border overflow-hidden">
+                {team.map((m) => (
+                  <li key={m.id} className="flex items-center justify-between gap-2 px-4 py-3 bg-card">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {m.name || m.email || m.user_id}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">{m.email}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {isAdmin && m.user_id !== user?.id ? (
+                        <Select value={m.role} onValueChange={(v) => changeRole(m.id, v as OrgRole)}>
+                          <SelectTrigger className="h-8 w-28"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="admin">Admin</SelectItem>
+                            <SelectItem value="agent">Agent</SelectItem>
+                            <SelectItem value="staff">Staff</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Badge variant="outline" className="capitalize">{m.role}</Badge>
+                      )}
+                      {isAdmin && m.user_id !== user?.id && (
+                        <Button variant="ghost" size="icon" onClick={() => removeTeamMember(m.id)} aria-label="Remove">
+                          <Trash2 className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
-          {team.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-2">No teammates yet.</p>
-          ) : (
-            <ul className="divide-y divide-border rounded-lg border border-border overflow-hidden">
-              {team.map((m) => (
-                <li key={m.email} className="flex items-center justify-between gap-2 px-4 py-3 bg-card">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{m.email}</p>
-                    <p className="text-xs text-muted-foreground">{m.role}</p>
-                  </div>
-                  <Button variant="ghost" size="icon" onClick={() => removeMember(m.email)} aria-label="Remove">
-                    <Trash2 className="h-4 w-4 text-muted-foreground" />
-                  </Button>
-                </li>
-              ))}
-            </ul>
+          {isAdmin && invites.length > 0 && (
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Pending invites</p>
+              <ul className="divide-y divide-border rounded-lg border border-border overflow-hidden">
+                {invites.map((inv) => (
+                  <li key={inv.id} className="flex items-center justify-between gap-2 px-4 py-3 bg-card">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{inv.email}</p>
+                      <p className="text-xs text-muted-foreground capitalize">{inv.role}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button variant="outline" size="sm" onClick={() => copyInviteLink(inv.token)}>
+                        <Copy className="h-3 w-3" /> Copy link
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => cancelInvite(inv.id)} aria-label="Revoke">
+                        <Trash2 className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </div>
       </Section>
