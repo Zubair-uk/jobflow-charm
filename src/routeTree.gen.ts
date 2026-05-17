@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LeadsRouteImport } from './routes/leads'
 import { Route as IntegrationsRouteImport } from './routes/integrations'
 import { Route as BillingRouteImport } from './routes/billing'
@@ -21,6 +22,11 @@ import { Route as ApiPublicLeadsWebhookRouteImport } from './routes/api/public/l
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LeadsRoute = LeadsRouteImport.update({
@@ -66,6 +72,7 @@ export interface FileRoutesByFullPath {
   '/billing': typeof BillingRoute
   '/integrations': typeof IntegrationsRoute
   '/leads': typeof LeadsRoute
+  '/onboarding': typeof OnboardingRoute
   '/settings': typeof SettingsRoute
   '/api/public/leads-webhook': typeof ApiPublicLeadsWebhookRoute
 }
@@ -76,6 +83,7 @@ export interface FileRoutesByTo {
   '/billing': typeof BillingRoute
   '/integrations': typeof IntegrationsRoute
   '/leads': typeof LeadsRoute
+  '/onboarding': typeof OnboardingRoute
   '/settings': typeof SettingsRoute
   '/api/public/leads-webhook': typeof ApiPublicLeadsWebhookRoute
 }
@@ -87,6 +95,7 @@ export interface FileRoutesById {
   '/billing': typeof BillingRoute
   '/integrations': typeof IntegrationsRoute
   '/leads': typeof LeadsRoute
+  '/onboarding': typeof OnboardingRoute
   '/settings': typeof SettingsRoute
   '/api/public/leads-webhook': typeof ApiPublicLeadsWebhookRoute
 }
@@ -99,6 +108,7 @@ export interface FileRouteTypes {
     | '/billing'
     | '/integrations'
     | '/leads'
+    | '/onboarding'
     | '/settings'
     | '/api/public/leads-webhook'
   fileRoutesByTo: FileRoutesByTo
@@ -109,6 +119,7 @@ export interface FileRouteTypes {
     | '/billing'
     | '/integrations'
     | '/leads'
+    | '/onboarding'
     | '/settings'
     | '/api/public/leads-webhook'
   id:
@@ -119,6 +130,7 @@ export interface FileRouteTypes {
     | '/billing'
     | '/integrations'
     | '/leads'
+    | '/onboarding'
     | '/settings'
     | '/api/public/leads-webhook'
   fileRoutesById: FileRoutesById
@@ -130,6 +142,7 @@ export interface RootRouteChildren {
   BillingRoute: typeof BillingRoute
   IntegrationsRoute: typeof IntegrationsRoute
   LeadsRoute: typeof LeadsRoute
+  OnboardingRoute: typeof OnboardingRoute
   SettingsRoute: typeof SettingsRoute
   ApiPublicLeadsWebhookRoute: typeof ApiPublicLeadsWebhookRoute
 }
@@ -141,6 +154,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/leads': {
@@ -202,9 +222,20 @@ const rootRouteChildren: RootRouteChildren = {
   BillingRoute: BillingRoute,
   IntegrationsRoute: IntegrationsRoute,
   LeadsRoute: LeadsRoute,
+  OnboardingRoute: OnboardingRoute,
   SettingsRoute: SettingsRoute,
   ApiPublicLeadsWebhookRoute: ApiPublicLeadsWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
