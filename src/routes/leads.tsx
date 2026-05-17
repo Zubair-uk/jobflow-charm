@@ -4,6 +4,7 @@ import { Search, Loader2, Users, Sparkles, Mail, Phone, Calendar, Home, Tag } fr
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useOrg } from "@/hooks/use-org";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
