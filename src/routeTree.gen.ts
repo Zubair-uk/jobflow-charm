@@ -13,6 +13,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LeadsRouteImport } from './routes/leads'
 import { Route as IntegrationsRouteImport } from './routes/integrations'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as BillingRouteImport } from './routes/billing'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AiRepliesRouteImport } from './routes/ai-replies'
@@ -37,6 +38,11 @@ const LeadsRoute = LeadsRouteImport.update({
 const IntegrationsRoute = IntegrationsRouteImport.update({
   id: '/integrations',
   path: '/integrations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BillingRoute = BillingRouteImport.update({
@@ -70,6 +76,7 @@ export interface FileRoutesByFullPath {
   '/ai-replies': typeof AiRepliesRoute
   '/auth': typeof AuthRoute
   '/billing': typeof BillingRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/integrations': typeof IntegrationsRoute
   '/leads': typeof LeadsRoute
   '/onboarding': typeof OnboardingRoute
@@ -81,6 +88,7 @@ export interface FileRoutesByTo {
   '/ai-replies': typeof AiRepliesRoute
   '/auth': typeof AuthRoute
   '/billing': typeof BillingRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/integrations': typeof IntegrationsRoute
   '/leads': typeof LeadsRoute
   '/onboarding': typeof OnboardingRoute
@@ -93,6 +101,7 @@ export interface FileRoutesById {
   '/ai-replies': typeof AiRepliesRoute
   '/auth': typeof AuthRoute
   '/billing': typeof BillingRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/integrations': typeof IntegrationsRoute
   '/leads': typeof LeadsRoute
   '/onboarding': typeof OnboardingRoute
@@ -106,6 +115,7 @@ export interface FileRouteTypes {
     | '/ai-replies'
     | '/auth'
     | '/billing'
+    | '/forgot-password'
     | '/integrations'
     | '/leads'
     | '/onboarding'
@@ -117,6 +127,7 @@ export interface FileRouteTypes {
     | '/ai-replies'
     | '/auth'
     | '/billing'
+    | '/forgot-password'
     | '/integrations'
     | '/leads'
     | '/onboarding'
@@ -128,6 +139,7 @@ export interface FileRouteTypes {
     | '/ai-replies'
     | '/auth'
     | '/billing'
+    | '/forgot-password'
     | '/integrations'
     | '/leads'
     | '/onboarding'
@@ -140,6 +152,7 @@ export interface RootRouteChildren {
   AiRepliesRoute: typeof AiRepliesRoute
   AuthRoute: typeof AuthRoute
   BillingRoute: typeof BillingRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   IntegrationsRoute: typeof IntegrationsRoute
   LeadsRoute: typeof LeadsRoute
   OnboardingRoute: typeof OnboardingRoute
@@ -175,6 +188,13 @@ declare module '@tanstack/react-router' {
       path: '/integrations'
       fullPath: '/integrations'
       preLoaderRoute: typeof IntegrationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/billing': {
@@ -220,6 +240,7 @@ const rootRouteChildren: RootRouteChildren = {
   AiRepliesRoute: AiRepliesRoute,
   AuthRoute: AuthRoute,
   BillingRoute: BillingRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   IntegrationsRoute: IntegrationsRoute,
   LeadsRoute: LeadsRoute,
   OnboardingRoute: OnboardingRoute,
