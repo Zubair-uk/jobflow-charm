@@ -16,18 +16,36 @@ const json = (body: unknown, status = 200) =>
 
 const HARDCODED_USER_ID = "7d21c6fb-09bf-47e0-b424-75838ac73a30";
 
-const LeadSchema = z.object({
-  full_name: z.string().trim().min(1).max(200),
-  email: z.string().trim().email().max(255).optional().nullable(),
-  phone: z.string().trim().max(40).optional().nullable(),
-  property_interest: z.string().trim().max(500).optional().nullable(),
-  lead_source: z.string().trim().max(100).optional().nullable(),
-  source: z.string().trim().max(100).optional().nullable(),
-  message: z.string().trim().max(5000).optional().nullable(),
-  status: z.string().trim().max(50).optional(),
-  ai_reply: z.string().trim().max(5000).optional().nullable(),
-  created_at: z.string().datetime().optional(),
-});
+// Accept a loose payload so we can map common aliases from n8n / external sources.
+const str = (max: number) => z.string().trim().max(max).optional().nullable();
+const LeadSchema = z
+  .object({
+    full_name: str(200),
+    name: str(200),
+    contact_name: str(200),
+
+    email: str(255),
+    contact_email: str(255),
+    sender_email: str(255),
+
+    phone: str(40),
+    contact_phone: str(40),
+    phone_number: str(40),
+
+    property_interest: str(500),
+    property: str(500),
+
+    lead_source: str(100),
+    source: str(100),
+
+    message: str(5000),
+    notes: str(5000),
+
+    status: str(50),
+    ai_reply: str(5000),
+    created_at: z.string().datetime().optional(),
+  })
+  .passthrough();
 
 export const Route = createFileRoute("/api/public/leads-webhook")({
   server: {
@@ -50,17 +68,27 @@ export const Route = createFileRoute("/api/public/leads-webhook")({
         }
 
         const d = parsed.data;
+        const pick = (...vals: Array<string | null | undefined>) =>
+          vals.find((v) => typeof v === "string" && v.trim().length > 0) ?? null;
+
+        const fullName = pick(d.full_name, d.name, d.contact_name) ?? "Unknown";
+        const email = pick(d.email, d.contact_email, d.sender_email);
+        const phone = pick(d.phone, d.contact_phone, d.phone_number);
+        const propertyInterest = pick(d.property_interest, d.property);
+        const leadSource = pick(d.lead_source, d.source);
+        const message = pick(d.message, d.notes);
+
         const insert = {
           user_id: HARDCODED_USER_ID,
-          full_name: d.full_name,
-          name: d.full_name,
-          email: d.email ?? null,
-          phone: d.phone ?? null,
-          property_interest: d.property_interest ?? null,
-          property: d.property_interest ?? null,
-          lead_source: d.lead_source ?? d.source ?? null,
-          message: d.message ?? null,
-          notes: d.message ?? null,
+          full_name: fullName,
+          name: fullName,
+          email,
+          phone,
+          property_interest: propertyInterest,
+          property: propertyInterest,
+          lead_source: leadSource,
+          message,
+          notes: message,
           status: d.status ?? "New",
           ai_reply: d.ai_reply ?? null,
           ...(d.created_at ? { created_at: d.created_at } : {}),
