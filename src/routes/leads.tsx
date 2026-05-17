@@ -163,6 +163,53 @@ function LeadsPage() {
     }
   };
 
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from("leads").delete().eq("id", id);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Lead deleted");
+      setSelected((s) => (s && s.id === id ? null : s));
+    }
+    setDeletingId(null);
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAllVisible = () => {
+    const visibleIds = filtered.map((l) => l.id);
+    const allSelected = visibleIds.every((id) => selectedIds.has(id));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      visibleIds.forEach((id) => {
+        if (allSelected) next.delete(id);
+        else next.add(id);
+      });
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    const { error } = await supabase.from("leads").delete().in("id", ids);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success(`${ids.length} lead${ids.length === 1 ? "" : "s"} deleted`);
+      setSelectedIds(new Set());
+      setBulkMode(false);
+    }
+    setShowBulkDeleteDialog(false);
+  };
+
   return (
     <div className="space-y-6">
       <div>
