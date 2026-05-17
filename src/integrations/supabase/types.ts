@@ -236,7 +236,10 @@ export type Database = {
           id: string
           name: string
           owner_id: string
+          plan: string
           slug: string | null
+          trial_ends_at: string
+          trial_started_at: string
           updated_at: string
         }
         Insert: {
@@ -244,7 +247,10 @@ export type Database = {
           id?: string
           name: string
           owner_id: string
+          plan?: string
           slug?: string | null
+          trial_ends_at?: string
+          trial_started_at?: string
           updated_at?: string
         }
         Update: {
@@ -252,7 +258,10 @@ export type Database = {
           id?: string
           name?: string
           owner_id?: string
+          plan?: string
           slug?: string | null
+          trial_ends_at?: string
+          trial_started_at?: string
           updated_at?: string
         }
         Relationships: []
@@ -332,6 +341,7 @@ export type Database = {
         Args: { _org_id: string; _user_id: string }
         Returns: boolean
       }
+      org_has_active_access: { Args: { _org_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "agent" | "staff"
