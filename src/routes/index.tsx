@@ -25,6 +25,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { statusVariant, type Lead } from "./leads";
+import { useOrg } from "@/hooks/use-org";
 import { TrialBanner } from "@/components/trial-banner";
 
 export const Route = createFileRoute("/")({
@@ -369,6 +370,7 @@ function LandingPage() {
 
 function Dashboard() {
   const { user } = useAuth();
+  const { orgId } = useOrg();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -387,6 +389,36 @@ function Dashboard() {
     })();
     return () => { cancelled = true; };
   }, [user]);
+
+  useEffect(() => {
+    if (!user || !orgId) return;
+    const channel = supabase
+      .channel("dashboard-leads")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "leads", filter: `organization_id=eq.${orgId}` },
+        (payload) => {
+          setLeads((prev) => {
+            if (payload.eventType === "INSERT") {
+              const row = payload.new as Lead;
+              if (prev.some((l) => l.id === row.id)) return prev;
+              return [row, ...prev];
+            }
+            if (payload.eventType === "UPDATE") {
+              const row = payload.new as Lead;
+              return prev.map((l) => (l.id === row.id ? row : l));
+            }
+            if (payload.eventType === "DELETE") {
+              const row = payload.old as Lead;
+              return prev.filter((l) => l.id !== row.id);
+            }
+            return prev;
+          });
+        },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user, orgId]);
 
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Search, Loader2, Users, Sparkles, Mail, Phone, Calendar, Home, Tag } from "lucide-react";
+import { Search, Loader2, Users, Sparkles, Mail, Phone, Calendar, Home, Tag, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -13,6 +13,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -32,7 +43,7 @@ export const Route = createFileRoute("/leads")({
   component: LeadsPage,
 });
 
-export const STATUSES = ["New", "Contacted", "Viewing Booked", "Closed", "Lost"] as const;
+export const STATUSES = ["New", "Contacted", "Viewing Booked", "Closed", "Lost", "Test/Demo"] as const;
 export type Status = (typeof STATUSES)[number];
 
 export type Lead = {
@@ -60,6 +71,8 @@ export function statusVariant(status: string) {
       return "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
     case "Lost":
       return "bg-muted text-muted-foreground border-border";
+    case "Test/Demo":
+      return "bg-purple-500/10 text-purple-500 border-purple-500/20";
     default:
       return "bg-primary/10 text-primary border-primary/20";
   }
@@ -73,6 +86,10 @@ function LeadsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selected, setSelected] = useState<Lead | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [bulkMode, setBulkMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -146,6 +163,53 @@ function LeadsPage() {
     }
   };
 
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from("leads").delete().eq("id", id);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Lead deleted");
+      setSelected((s) => (s && s.id === id ? null : s));
+    }
+    setDeletingId(null);
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAllVisible = () => {
+    const visibleIds = filtered.map((l) => l.id);
+    const allSelected = visibleIds.every((id) => selectedIds.has(id));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      visibleIds.forEach((id) => {
+        if (allSelected) next.delete(id);
+        else next.add(id);
+      });
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    const { error } = await supabase.from("leads").delete().in("id", ids);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success(`${ids.length} lead${ids.length === 1 ? "" : "s"} deleted`);
+      setSelectedIds(new Set());
+      setBulkMode(false);
+    }
+    setShowBulkDeleteDialog(false);
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -176,7 +240,41 @@ function LeadsPage() {
             ))}
           </SelectContent>
         </Select>
+        <button
+          onClick={() => {
+            setBulkMode((v) => !v);
+            setSelectedIds(new Set());
+          }}
+          className={`inline-flex items-center justify-center rounded-md px-3 py-2 text-xs font-medium transition-colors border ${
+            bulkMode
+              ? "bg-primary text-primary-foreground border-primary"
+              : "bg-background text-foreground border-input hover:bg-accent"
+          }`}
+        >
+          {bulkMode ? "Done" : "Bulk actions"}
+        </button>
       </div>
+
+      {bulkMode && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2">
+          <Checkbox
+            checked={filtered.length > 0 && filtered.every((l) => selectedIds.has(l.id))}
+            onCheckedChange={selectAllVisible}
+            aria-label="Select all visible"
+          />
+          <span className="text-sm text-muted-foreground">
+            {selectedIds.size} selected
+          </span>
+          {selectedIds.size > 0 && (
+            <button
+              onClick={() => setShowBulkDeleteDialog(true)}
+              className="ml-auto inline-flex items-center gap-1.5 rounded-md bg-destructive px-3 py-1.5 text-xs font-medium text-destructive-foreground hover:bg-destructive/90 transition-colors"
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Delete selected
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="rounded-xl border border-border bg-card overflow-hidden">
         {loading ? (
@@ -202,6 +300,15 @@ function LeadsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground bg-muted/40">
+                  {bulkMode && (
+                    <th className="px-2 py-3 w-10">
+                      <Checkbox
+                        checked={filtered.length > 0 && filtered.every((l) => selectedIds.has(l.id))}
+                        onCheckedChange={selectAllVisible}
+                        aria-label="Select all"
+                      />
+                    </th>
+                  )}
                   <th className="px-4 py-3 font-medium">Name</th>
                   <th className="px-4 py-3 font-medium">Contact</th>
                   <th className="px-4 py-3 font-medium hidden md:table-cell">Property</th>
@@ -209,15 +316,27 @@ function LeadsPage() {
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium hidden sm:table-cell">AI</th>
                   <th className="px-4 py-3 font-medium hidden md:table-cell">Created</th>
+                  <th className="px-4 py-3 font-medium w-10">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((lead) => (
                   <tr
                     key={lead.id}
-                    onClick={() => setSelected(lead)}
-                    className="border-t border-border hover:bg-muted/30 transition-colors cursor-pointer"
+                    onClick={() => !bulkMode && setSelected(lead)}
+                    className={`border-t border-border hover:bg-muted/30 transition-colors ${
+                      bulkMode ? "" : "cursor-pointer"
+                    }`}
                   >
+                    {bulkMode && (
+                      <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedIds.has(lead.id)}
+                          onCheckedChange={() => toggleSelect(lead.id)}
+                          aria-label={`Select ${lead.full_name ?? "lead"}`}
+                        />
+                      </td>
+                    )}
                     <td className="px-4 py-3 font-medium text-foreground">
                       {lead.full_name ?? "—"}
                     </td>
@@ -257,6 +376,15 @@ function LeadsPage() {
                     </td>
                     <td className="px-4 py-3 text-muted-foreground text-sm whitespace-nowrap hidden md:table-cell">
                       {new Date(lead.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => setDeletingId(lead.id)}
+                        className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                        title="Delete lead"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -328,6 +456,46 @@ function LeadsPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deletingId} onOpenChange={(o) => !o && setDeletingId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete lead?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this lead? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeletingId(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletingId && handleDelete(deletingId)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedIds.size} lead{selectedIds.size === 1 ? "" : "s"}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the selected leads? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowBulkDeleteDialog(false)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
