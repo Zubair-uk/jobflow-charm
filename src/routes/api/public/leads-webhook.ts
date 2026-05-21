@@ -41,6 +41,79 @@ async function orgHasActiveAccess(orgId: string): Promise<boolean> {
   return !!data.trial_ends_at && new Date(data.trial_ends_at).getTime() > Date.now();
 }
 
+// --- Extraction helpers -------------------------------------------------
+
+function stripHtml(input: string): string {
+  return input
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<br\s*\/?>(\r?\n)?/gi, "\n")
+    .replace(/<\/(p|div|tr|li|h[1-6])>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&quot;/gi, '"')
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{2,}/g, "\n")
+    .trim();
+}
+
+const SIGN_OFF_RE =
+  /\b(kind regards|best regards|warm regards|many thanks|kind thanks|regards|thanks|thank you|cheers|sincerely|yours sincerely|yours faithfully|all the best|best wishes|best)\b[,.!:\s]*/i;
+
+function looksLikeName(line: string): boolean {
+  const t = line.trim();
+  if (!t || t.length > 60) return false;
+  if (/[@\d]/.test(t)) return false;
+  if (/^(sent from|from:|to:|subject:|date:|on .* wrote:)/i.test(t)) return false;
+  const words = t.split(/\s+/);
+  if (words.length < 1 || words.length > 4) return false;
+  return words.every((w) => /^[A-Z][a-zA-Z'’\-]{1,}\.?$/.test(w));
+}
+
+function extractNameFromSignature(text: string): string | null {
+  if (!text) return null;
+  const lines = text.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    const m = line.match(SIGN_OFF_RE);
+    if (!m) continue;
+    // Check rest of same line after sign-off
+    const tail = line.slice((m.index ?? 0) + m[0].length).trim();
+    if (tail && looksLikeName(tail)) return tail;
+    // Otherwise scan subsequent lines
+    for (let j = i + 1; j < Math.min(i + 6, lines.length); j++) {
+      const cand = lines[j].trim();
+      if (!cand) continue;
+      if (looksLikeName(cand)) return cand;
+      // stop if we hit obvious non-name content
+      if (/[@]|^\+?\d/.test(cand)) break;
+    }
+  }
+  return null;
+}
+
+const UK_PHONE_RE =
+  /(?:(?:\+44\s?|0044\s?|0)(?:7\d{3}|\d{2,4})[\s-]?\d{3,4}[\s-]?\d{3,4})/g;
+
+function extractUkPhone(text: string): string | null {
+  if (!text) return null;
+  const matches = text.match(UK_PHONE_RE);
+  if (!matches) return null;
+  // Pick the first match whose digits add up to a plausible UK length (10-12)
+  for (const raw of matches) {
+    const digits = raw.replace(/\D/g, "");
+    const normalized = digits.startsWith("44")
+      ? digits.length >= 11 && digits.length <= 13
+      : digits.length >= 10 && digits.length <= 11;
+    if (normalized) return raw.trim();
+  }
+  return null;
+}
+
 // Accept a loose payload so we can map common aliases from n8n / external sources.
 const str = (max: number) => z.string().trim().max(max).optional().nullable();
 const LeadSchema = z
@@ -103,6 +176,36 @@ export const Route = createFileRoute("/api/public/leads-webhook")({
         const leadSource = pick(d.lead_source, d.source);
         const message = pick(d.message, d.notes);
 
+        // --- Enrich from message body ---
+        const cleanedMessage = message ? stripHtml(message) : "";
+        const extractedName = extractNameFromSignature(cleanedMessage);
+        const extractedPhone = extractUkPhone(cleanedMessage);
+
+        console.log("[leads-webhook] extraction", {
+          extracted_name: extractedName,
+          extracted_phone: extractedPhone,
+          incoming_full_name: fullName,
+          incoming_phone: phone,
+        });
+
+        const isPlaceholderName = (n: string | null) => {
+          if (!n) return true;
+          const v = n.trim().toLowerCase();
+          return (
+            v === "" ||
+            v === "unknown" ||
+            v === "estate lead" ||
+            v === "test estate lead" ||
+            v === "lead"
+          );
+        };
+
+        const finalName =
+          extractedName && (isPlaceholderName(fullName) || fullName === "Unknown")
+            ? extractedName
+            : fullName;
+        const finalPhone = phone && phone.trim() ? phone : extractedPhone;
+
         const orgId = await getWebhookOrgId();
         if (!orgId) {
           return json({ error: "No organization found for webhook user" }, 500);
@@ -117,15 +220,15 @@ export const Route = createFileRoute("/api/public/leads-webhook")({
         const insert = {
           user_id: HARDCODED_USER_ID,
           organization_id: orgId,
-          full_name: fullName,
-          name: fullName,
+          full_name: finalName,
+          name: finalName,
           email,
-          phone,
+          phone: finalPhone,
           property_interest: propertyInterest,
           property: propertyInterest,
           lead_source: leadSource,
-          message,
-          notes: message,
+          message: cleanedMessage || message,
+          notes: cleanedMessage || message,
           status: d.status ?? "New",
           ai_reply: d.ai_reply ?? null,
           ...(d.created_at ? { created_at: d.created_at } : {}),
