@@ -479,6 +479,28 @@ function LeadsPage() {
                     )}
                   </div>
                 </div>
+
+                {matchedProperty && (
+                  <div>
+                    <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <Building2 className="h-3.5 w-3.5 text-primary" /> Matched property
+                    </label>
+                    <Link
+                      to="/properties"
+                      className="mt-1.5 block rounded-lg border border-border bg-muted/30 p-4 hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="font-medium text-foreground">{matchedProperty.title}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        {[matchedProperty.address, matchedProperty.city, matchedProperty.postcode]
+                          .filter(Boolean)
+                          .join(", ") || "—"}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1 capitalize">
+                        Status: {matchedProperty.status.replace(/_/g, " ")}
+                      </div>
+                    </Link>
+                  </div>
+                )}
               </div>
             </>
           )}
