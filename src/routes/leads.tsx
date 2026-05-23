@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Search, Loader2, Users, Sparkles, Mail, Phone, Calendar, Home, Tag, Trash2 } from "lucide-react";
+import { Search, Loader2, Users, Sparkles, Mail, Phone, Calendar, Home, Tag, Trash2, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -59,6 +59,16 @@ export type Lead = {
   message: string | null;
   notes: string | null;
   created_at: string;
+  property_id?: string | null;
+};
+
+type MatchedProperty = {
+  id: string;
+  title: string;
+  address: string | null;
+  city: string | null;
+  postcode: string | null;
+  status: string;
 };
 
 export function statusVariant(status: string) {
@@ -90,6 +100,24 @@ function LeadsPage() {
   const [bulkMode, setBulkMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+  const [matchedProperty, setMatchedProperty] = useState<MatchedProperty | null>(null);
+
+  useEffect(() => {
+    setMatchedProperty(null);
+    if (!selected?.property_id) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("properties")
+        .select("id, title, address, city, postcode, status")
+        .eq("id", selected.property_id!)
+        .maybeSingle();
+      if (!cancelled) setMatchedProperty((data as MatchedProperty | null) ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selected?.property_id]);
 
   useEffect(() => {
     if (!user) return;
