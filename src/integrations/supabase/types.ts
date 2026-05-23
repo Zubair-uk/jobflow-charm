@@ -111,6 +111,7 @@ export type Database = {
           organization_id: string | null
           phone: string | null
           property: string | null
+          property_id: string | null
           property_interest: string | null
           status: string
           updated_at: string
@@ -129,6 +130,7 @@ export type Database = {
           organization_id?: string | null
           phone?: string | null
           property?: string | null
+          property_id?: string | null
           property_interest?: string | null
           status?: string
           updated_at?: string
@@ -147,12 +149,21 @@ export type Database = {
           organization_id?: string | null
           phone?: string | null
           property?: string | null
+          property_id?: string | null
           property_interest?: string | null
           status?: string
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "leads_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       organization_invites: {
         Row: {
@@ -290,6 +301,63 @@ export type Database = {
           display_name?: string | null
           id?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      properties: {
+        Row: {
+          address: string | null
+          bathrooms: number | null
+          bedrooms: number | null
+          city: string | null
+          created_at: string
+          description: string | null
+          id: string
+          organization_id: string
+          postcode: string | null
+          price: number | null
+          property_type: string | null
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+          viewing_slots: Json
+        }
+        Insert: {
+          address?: string | null
+          bathrooms?: number | null
+          bedrooms?: number | null
+          city?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          organization_id: string
+          postcode?: string | null
+          price?: number | null
+          property_type?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+          viewing_slots?: Json
+        }
+        Update: {
+          address?: string | null
+          bathrooms?: number | null
+          bedrooms?: number | null
+          city?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          organization_id?: string
+          postcode?: string | null
+          price?: number | null
+          property_type?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          viewing_slots?: Json
         }
         Relationships: []
       }
