@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Users, Bot, Plug, CreditCard, Settings, Sparkles } from "lucide-react";
+import { LayoutDashboard, Users, Bot, Plug, CreditCard, Settings, Sparkles, Building2 } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -15,6 +15,7 @@ import {
 const items = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Leads", url: "/leads", icon: Users },
+  { title: "Properties", url: "/properties", icon: Building2 },
   { title: "AI Replies", url: "/ai-replies", icon: Bot },
   { title: "Integrations", url: "/integrations", icon: Plug },
   { title: "Billing", url: "/billing", icon: CreditCard },
