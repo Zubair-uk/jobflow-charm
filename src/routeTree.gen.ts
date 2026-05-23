@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as PropertiesRouteImport } from './routes/properties'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LeadsRouteImport } from './routes/leads'
 import { Route as IntegrationsRouteImport } from './routes/integrations'
@@ -30,6 +31,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PropertiesRoute = PropertiesRouteImport.update({
+  id: '/properties',
+  path: '/properties',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OnboardingRoute = OnboardingRouteImport.update({
@@ -93,6 +99,7 @@ export interface FileRoutesByFullPath {
   '/integrations': typeof IntegrationsRoute
   '/leads': typeof LeadsRoute
   '/onboarding': typeof OnboardingRoute
+  '/properties': typeof PropertiesRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/api/public/leads-webhook': typeof ApiPublicLeadsWebhookRoute
@@ -107,6 +114,7 @@ export interface FileRoutesByTo {
   '/integrations': typeof IntegrationsRoute
   '/leads': typeof LeadsRoute
   '/onboarding': typeof OnboardingRoute
+  '/properties': typeof PropertiesRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/api/public/leads-webhook': typeof ApiPublicLeadsWebhookRoute
@@ -122,6 +130,7 @@ export interface FileRoutesById {
   '/integrations': typeof IntegrationsRoute
   '/leads': typeof LeadsRoute
   '/onboarding': typeof OnboardingRoute
+  '/properties': typeof PropertiesRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/api/public/leads-webhook': typeof ApiPublicLeadsWebhookRoute
@@ -138,6 +147,7 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/leads'
     | '/onboarding'
+    | '/properties'
     | '/reset-password'
     | '/settings'
     | '/api/public/leads-webhook'
@@ -152,6 +162,7 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/leads'
     | '/onboarding'
+    | '/properties'
     | '/reset-password'
     | '/settings'
     | '/api/public/leads-webhook'
@@ -166,6 +177,7 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/leads'
     | '/onboarding'
+    | '/properties'
     | '/reset-password'
     | '/settings'
     | '/api/public/leads-webhook'
@@ -181,6 +193,7 @@ export interface RootRouteChildren {
   IntegrationsRoute: typeof IntegrationsRoute
   LeadsRoute: typeof LeadsRoute
   OnboardingRoute: typeof OnboardingRoute
+  PropertiesRoute: typeof PropertiesRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SettingsRoute: typeof SettingsRoute
   ApiPublicLeadsWebhookRoute: typeof ApiPublicLeadsWebhookRoute
@@ -200,6 +213,13 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/properties': {
+      id: '/properties'
+      path: '/properties'
+      fullPath: '/properties'
+      preLoaderRoute: typeof PropertiesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/onboarding': {
@@ -285,6 +305,7 @@ const rootRouteChildren: RootRouteChildren = {
   IntegrationsRoute: IntegrationsRoute,
   LeadsRoute: LeadsRoute,
   OnboardingRoute: OnboardingRoute,
+  PropertiesRoute: PropertiesRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SettingsRoute: SettingsRoute,
   ApiPublicLeadsWebhookRoute: ApiPublicLeadsWebhookRoute,
@@ -292,3 +313,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
