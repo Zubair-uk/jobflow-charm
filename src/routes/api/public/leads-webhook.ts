@@ -217,6 +217,34 @@ export const Route = createFileRoute("/api/public/leads-webhook")({
           );
         }
 
+        // --- Match property by interest text ---
+        let matchedPropertyId: string | null = null;
+        const searchHay = [propertyInterest, cleanedMessage].filter(Boolean).join(" ").toLowerCase();
+        if (searchHay) {
+          const { data: props } = await supabaseAdmin
+            .from("properties")
+            .select("id, title, address, postcode, city")
+            .eq("organization_id", orgId);
+          if (props && props.length) {
+            const stripSpace = (s: string) => s.replace(/\s+/g, "").toLowerCase();
+            const hayNoSpace = stripSpace(searchHay);
+            const match = props.find((p) => {
+              const candidates = [p.postcode, p.title, p.address, p.city].filter(Boolean) as string[];
+              return candidates.some((c) => {
+                const cl = c.toLowerCase().trim();
+                if (cl.length < 3) return false;
+                if (searchHay.includes(cl)) return true;
+                const cns = stripSpace(c);
+                return cns.length >= 4 && hayNoSpace.includes(cns);
+              });
+            });
+            matchedPropertyId = match?.id ?? null;
+            if (matchedPropertyId) {
+              console.log("[leads-webhook] property matched", { property_id: matchedPropertyId });
+            }
+          }
+        }
+
         const insert = {
           user_id: HARDCODED_USER_ID,
           organization_id: orgId,
@@ -226,6 +254,7 @@ export const Route = createFileRoute("/api/public/leads-webhook")({
           phone: finalPhone,
           property_interest: propertyInterest,
           property: propertyInterest,
+          property_id: matchedPropertyId,
           lead_source: leadSource,
           message: cleanedMessage || message,
           notes: cleanedMessage || message,
