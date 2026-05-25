@@ -9,13 +9,17 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SecurityRouteImport } from './routes/security'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as PropertiesRouteImport } from './routes/properties'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LeadsRouteImport } from './routes/leads'
 import { Route as IntegrationsRouteImport } from './routes/integrations'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as CookiesRouteImport } from './routes/cookies'
 import { Route as BillingRouteImport } from './routes/billing'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AiRepliesRouteImport } from './routes/ai-replies'
@@ -23,9 +27,19 @@ import { Route as AcceptInviteRouteImport } from './routes/accept-invite'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiPublicLeadsWebhookRouteImport } from './routes/api/public/leads-webhook'
 
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SecurityRoute = SecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -36,6 +50,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
 const PropertiesRoute = PropertiesRouteImport.update({
   id: '/properties',
   path: '/properties',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OnboardingRoute = OnboardingRouteImport.update({
@@ -56,6 +75,11 @@ const IntegrationsRoute = IntegrationsRouteImport.update({
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   id: '/forgot-password',
   path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CookiesRoute = CookiesRouteImport.update({
+  id: '/cookies',
+  path: '/cookies',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BillingRoute = BillingRouteImport.update({
@@ -95,13 +119,17 @@ export interface FileRoutesByFullPath {
   '/ai-replies': typeof AiRepliesRoute
   '/auth': typeof AuthRoute
   '/billing': typeof BillingRoute
+  '/cookies': typeof CookiesRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/integrations': typeof IntegrationsRoute
   '/leads': typeof LeadsRoute
   '/onboarding': typeof OnboardingRoute
+  '/privacy': typeof PrivacyRoute
   '/properties': typeof PropertiesRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/security': typeof SecurityRoute
   '/settings': typeof SettingsRoute
+  '/terms': typeof TermsRoute
   '/api/public/leads-webhook': typeof ApiPublicLeadsWebhookRoute
 }
 export interface FileRoutesByTo {
@@ -110,13 +138,17 @@ export interface FileRoutesByTo {
   '/ai-replies': typeof AiRepliesRoute
   '/auth': typeof AuthRoute
   '/billing': typeof BillingRoute
+  '/cookies': typeof CookiesRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/integrations': typeof IntegrationsRoute
   '/leads': typeof LeadsRoute
   '/onboarding': typeof OnboardingRoute
+  '/privacy': typeof PrivacyRoute
   '/properties': typeof PropertiesRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/security': typeof SecurityRoute
   '/settings': typeof SettingsRoute
+  '/terms': typeof TermsRoute
   '/api/public/leads-webhook': typeof ApiPublicLeadsWebhookRoute
 }
 export interface FileRoutesById {
@@ -126,13 +158,17 @@ export interface FileRoutesById {
   '/ai-replies': typeof AiRepliesRoute
   '/auth': typeof AuthRoute
   '/billing': typeof BillingRoute
+  '/cookies': typeof CookiesRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/integrations': typeof IntegrationsRoute
   '/leads': typeof LeadsRoute
   '/onboarding': typeof OnboardingRoute
+  '/privacy': typeof PrivacyRoute
   '/properties': typeof PropertiesRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/security': typeof SecurityRoute
   '/settings': typeof SettingsRoute
+  '/terms': typeof TermsRoute
   '/api/public/leads-webhook': typeof ApiPublicLeadsWebhookRoute
 }
 export interface FileRouteTypes {
@@ -143,13 +179,17 @@ export interface FileRouteTypes {
     | '/ai-replies'
     | '/auth'
     | '/billing'
+    | '/cookies'
     | '/forgot-password'
     | '/integrations'
     | '/leads'
     | '/onboarding'
+    | '/privacy'
     | '/properties'
     | '/reset-password'
+    | '/security'
     | '/settings'
+    | '/terms'
     | '/api/public/leads-webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -158,13 +198,17 @@ export interface FileRouteTypes {
     | '/ai-replies'
     | '/auth'
     | '/billing'
+    | '/cookies'
     | '/forgot-password'
     | '/integrations'
     | '/leads'
     | '/onboarding'
+    | '/privacy'
     | '/properties'
     | '/reset-password'
+    | '/security'
     | '/settings'
+    | '/terms'
     | '/api/public/leads-webhook'
   id:
     | '__root__'
@@ -173,13 +217,17 @@ export interface FileRouteTypes {
     | '/ai-replies'
     | '/auth'
     | '/billing'
+    | '/cookies'
     | '/forgot-password'
     | '/integrations'
     | '/leads'
     | '/onboarding'
+    | '/privacy'
     | '/properties'
     | '/reset-password'
+    | '/security'
     | '/settings'
+    | '/terms'
     | '/api/public/leads-webhook'
   fileRoutesById: FileRoutesById
 }
@@ -189,23 +237,41 @@ export interface RootRouteChildren {
   AiRepliesRoute: typeof AiRepliesRoute
   AuthRoute: typeof AuthRoute
   BillingRoute: typeof BillingRoute
+  CookiesRoute: typeof CookiesRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   IntegrationsRoute: typeof IntegrationsRoute
   LeadsRoute: typeof LeadsRoute
   OnboardingRoute: typeof OnboardingRoute
+  PrivacyRoute: typeof PrivacyRoute
   PropertiesRoute: typeof PropertiesRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  SecurityRoute: typeof SecurityRoute
   SettingsRoute: typeof SettingsRoute
+  TermsRoute: typeof TermsRoute
   ApiPublicLeadsWebhookRoute: typeof ApiPublicLeadsWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/security': {
+      id: '/security'
+      path: '/security'
+      fullPath: '/security'
+      preLoaderRoute: typeof SecurityRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reset-password': {
@@ -220,6 +286,13 @@ declare module '@tanstack/react-router' {
       path: '/properties'
       fullPath: '/properties'
       preLoaderRoute: typeof PropertiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/onboarding': {
@@ -248,6 +321,13 @@ declare module '@tanstack/react-router' {
       path: '/forgot-password'
       fullPath: '/forgot-password'
       preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cookies': {
+      id: '/cookies'
+      path: '/cookies'
+      fullPath: '/cookies'
+      preLoaderRoute: typeof CookiesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/billing': {
@@ -301,13 +381,17 @@ const rootRouteChildren: RootRouteChildren = {
   AiRepliesRoute: AiRepliesRoute,
   AuthRoute: AuthRoute,
   BillingRoute: BillingRoute,
+  CookiesRoute: CookiesRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   IntegrationsRoute: IntegrationsRoute,
   LeadsRoute: LeadsRoute,
   OnboardingRoute: OnboardingRoute,
+  PrivacyRoute: PrivacyRoute,
   PropertiesRoute: PropertiesRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  SecurityRoute: SecurityRoute,
   SettingsRoute: SettingsRoute,
+  TermsRoute: TermsRoute,
   ApiPublicLeadsWebhookRoute: ApiPublicLeadsWebhookRoute,
 }
 export const routeTree = rootRouteImport
