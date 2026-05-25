@@ -16,6 +16,8 @@ import {
   Trash2,
   LogOut,
   KeyRound,
+  Download,
+  FileLock2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -326,6 +328,55 @@ function Page() {
     setAI(defaultAI);
     setNotifications(defaultNotifications);
     setTeam([]);
+  };
+
+  const handleExportData = async () => {
+    if (!orgId) {
+      toast.error("No workspace to export");
+      return;
+    }
+    try {
+      const [leadsRes, propsRes, repliesRes, settingsRes] = await Promise.all([
+        supabase.from("leads").select("*").eq("organization_id", orgId),
+        supabase.from("properties").select("*").eq("organization_id", orgId),
+        supabase.from("ai_replies").select("*").eq("organization_id", orgId),
+        supabase.from("settings").select("key, value, updated_at").eq("organization_id", orgId),
+      ]);
+      const payload = {
+        exported_at: new Date().toISOString(),
+        organization_id: orgId,
+        leads: leadsRes.data ?? [],
+        properties: propsRes.data ?? [],
+        ai_replies: repliesRes.data ?? [],
+        settings: settingsRes.data ?? [],
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `jobflow-export-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success("Export ready");
+    } catch {
+      toast.error("Export failed");
+    }
+  };
+
+  const handleDeleteAllData = async () => {
+    if (!orgId) return;
+    try {
+      await Promise.all([
+        supabase.from("ai_replies").delete().eq("organization_id", orgId),
+        supabase.from("leads").delete().eq("organization_id", orgId),
+        supabase.from("properties").delete().eq("organization_id", orgId),
+      ]);
+      toast.success("All workspace data deleted");
+    } catch {
+      toast.error("Failed to delete data");
+    }
   };
 
   if (loading) {
@@ -665,6 +716,48 @@ function Page() {
             </AlertDialogContent>
           </AlertDialog>
         </div>
+      </Section>
+
+      {/* Data & privacy */}
+      <Section
+        icon={<FileLock2 className="h-4 w-4" />}
+        title="Data & privacy"
+        description="Your data is processed for lead management and AI reply automation only. Export or permanently delete it at any time."
+      >
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={handleExportData}>
+            <Download className="h-4 w-4" /> Export my data
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" disabled={!isAdmin} title={!isAdmin ? "Admins only" : undefined}>
+                <Trash2 className="h-4 w-4" /> Delete all data
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete all workspace data?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This permanently removes all leads, properties and AI replies for this workspace.
+                  This cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDeleteAllData}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Yes, delete everything
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          See our <a href="/privacy" className="text-primary underline">Privacy Policy</a> and{" "}
+          <a href="/security" className="text-primary underline">Security</a> page for details.
+        </p>
       </Section>
     </div>
   );
