@@ -146,7 +146,11 @@ function AppShell() {
     pathname === "/auth" ||
     pathname === "/forgot-password" ||
     pathname === "/reset-password" ||
-    pathname === "/accept-invite";
+    pathname === "/accept-invite" ||
+    pathname === "/privacy" ||
+    pathname === "/cookies" ||
+    pathname === "/terms" ||
+    pathname === "/security";
   const isOnboarding = pathname === "/onboarding";
   const isLanding = pathname === "/";
 
