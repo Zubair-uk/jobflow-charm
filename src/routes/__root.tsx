@@ -15,6 +15,7 @@ import { Bell, Search, LogOut } from "lucide-react";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { OrgProvider, useOrg } from "@/hooks/use-org";
 import { Toaster } from "@/components/ui/sonner";
+import { CookieBanner } from "@/components/cookie-banner";
 import { useEffect } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 
@@ -129,6 +130,7 @@ function RootComponent() {
         <OrgProvider>
           <AppShell />
           <Toaster />
+          <CookieBanner />
         </OrgProvider>
       </AuthProvider>
     </QueryClientProvider>

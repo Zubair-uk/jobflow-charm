@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { statusVariant, type Lead } from "./leads";
 import { useOrg } from "@/hooks/use-org";
 import { TrialBanner } from "@/components/trial-banner";
+import { LegalFooter } from "@/components/legal-footer";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -347,19 +348,7 @@ function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border py-10">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-primary to-primary-glow">
-                <Sparkles className="h-3.5 w-3.5 text-primary-foreground" />
-              </div>
-              <span className="text-sm font-semibold">JobFlow AI</span>
-            </div>
-            <p className="text-xs text-muted-foreground">© {new Date().getFullYear()} JobFlow AI. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+      <LegalFooter />
     </div>
   );
 }
