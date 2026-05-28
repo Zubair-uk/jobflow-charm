@@ -391,6 +391,42 @@ export type Database = {
         }
         Relationships: []
       }
+      webhook_tokens: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          label: string
+          last_used_at: string | null
+          organization_id: string
+          revoked_at: string | null
+          source: string
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          label?: string
+          last_used_at?: string | null
+          organization_id: string
+          revoked_at?: string | null
+          source?: string
+          token: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          label?: string
+          last_used_at?: string | null
+          organization_id?: string
+          revoked_at?: string | null
+          source?: string
+          token?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
