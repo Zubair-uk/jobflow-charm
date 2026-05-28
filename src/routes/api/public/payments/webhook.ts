@@ -1,21 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createClient } from "@supabase/supabase-js";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
   verifyWebhook,
   EventName,
   type PaddleEnv,
 } from "@/lib/paddle.server";
 
-let _supabase: ReturnType<typeof createClient> | null = null;
-function getSupabase() {
-  if (!_supabase) {
-    _supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    );
-  }
-  return _supabase;
-}
+const getSupabase = () => supabaseAdmin;
 
 function planCodeFromProduct(productExternalId: string | undefined): string {
   if (productExternalId === "starter_plan") return "starter";
