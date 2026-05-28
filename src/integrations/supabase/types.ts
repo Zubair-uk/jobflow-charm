@@ -276,37 +276,124 @@ export type Database = {
       }
       organizations: {
         Row: {
+          ai_tone: string
+          billing_status: string
+          business_name: string | null
+          contact_email: string | null
+          contact_phone: string | null
           created_at: string
+          current_period_end: string | null
           id: string
           name: string
+          office_hours: Json
+          onboarding_completed_at: string | null
           owner_id: string
           plan: string
+          signature: string | null
           slug: string | null
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
           trial_ends_at: string
           trial_started_at: string
           updated_at: string
         }
         Insert: {
+          ai_tone?: string
+          billing_status?: string
+          business_name?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
           created_at?: string
+          current_period_end?: string | null
           id?: string
           name: string
+          office_hours?: Json
+          onboarding_completed_at?: string | null
           owner_id: string
           plan?: string
+          signature?: string | null
           slug?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           trial_ends_at?: string
           trial_started_at?: string
           updated_at?: string
         }
         Update: {
+          ai_tone?: string
+          billing_status?: string
+          business_name?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
           created_at?: string
+          current_period_end?: string | null
           id?: string
           name?: string
+          office_hours?: Json
+          onboarding_completed_at?: string | null
           owner_id?: string
           plan?: string
+          signature?: string | null
           slug?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           trial_ends_at?: string
           trial_started_at?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      plans: {
+        Row: {
+          ai_replies_limit: number | null
+          code: string
+          created_at: string
+          currency: string
+          features: Json
+          id: string
+          interval: string
+          is_active: boolean
+          leads_limit: number | null
+          name: string
+          price_cents: number
+          sort_order: number
+          stripe_price_id: string | null
+          updated_at: string
+          webhook_calls_limit: number | null
+        }
+        Insert: {
+          ai_replies_limit?: number | null
+          code: string
+          created_at?: string
+          currency?: string
+          features?: Json
+          id?: string
+          interval?: string
+          is_active?: boolean
+          leads_limit?: number | null
+          name: string
+          price_cents?: number
+          sort_order?: number
+          stripe_price_id?: string | null
+          updated_at?: string
+          webhook_calls_limit?: number | null
+        }
+        Update: {
+          ai_replies_limit?: number | null
+          code?: string
+          created_at?: string
+          currency?: string
+          features?: Json
+          id?: string
+          interval?: string
+          is_active?: boolean
+          leads_limit?: number | null
+          name?: string
+          price_cents?: number
+          sort_order?: number
+          stripe_price_id?: string | null
+          updated_at?: string
+          webhook_calls_limit?: number | null
         }
         Relationships: []
       }
@@ -424,6 +511,92 @@ export type Database = {
         }
         Relationships: []
       }
+      subscriptions: {
+        Row: {
+          cancel_at_period_end: boolean
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          id: string
+          organization_id: string
+          plan_code: string
+          status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          trial_ends_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          cancel_at_period_end?: boolean
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          organization_id: string
+          plan_code?: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          trial_ends_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cancel_at_period_end?: boolean
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          organization_id?: string
+          plan_code?: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          trial_ends_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_plan_code_fkey"
+            columns: ["plan_code"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      usage_counters: {
+        Row: {
+          ai_replies_generated: number
+          created_at: string
+          id: string
+          leads_processed: number
+          organization_id: string
+          period_month: string
+          updated_at: string
+          webhook_calls: number
+        }
+        Insert: {
+          ai_replies_generated?: number
+          created_at?: string
+          id?: string
+          leads_processed?: number
+          organization_id: string
+          period_month: string
+          updated_at?: string
+          webhook_calls?: number
+        }
+        Update: {
+          ai_replies_generated?: number
+          created_at?: string
+          id?: string
+          leads_processed?: number
+          organization_id?: string
+          period_month?: string
+          updated_at?: string
+          webhook_calls?: number
+        }
+        Relationships: []
+      }
       webhook_tokens: {
         Row: {
           created_at: string
@@ -473,6 +646,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_usage: {
+        Args: { _amount?: number; _field: string; _organization_id: string }
+        Returns: undefined
       }
       is_org_member: {
         Args: { _org_id: string; _user_id: string }

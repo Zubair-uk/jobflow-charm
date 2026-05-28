@@ -114,6 +114,17 @@ export const Route = createFileRoute("/api/public/leads/ingest")({
             .update({ last_used_at: new Date().toISOString() })
             .eq("id", tokenRow.id);
 
+          // Track webhook usage (best-effort)
+          try {
+            await supabaseAdmin.rpc("increment_usage", {
+              _organization_id: orgId,
+              _field: "webhook_calls",
+              _amount: 1,
+            });
+          } catch (e) {
+            console.warn("[leads/ingest] usage increment failed", e);
+          }
+
           return json({ success: true, id: result.id, created_at: result.created_at }, 201);
         } catch (e) {
           return json(
