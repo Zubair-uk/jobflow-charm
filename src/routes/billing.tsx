@@ -9,7 +9,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { getBillingOverview, createBillingPortalSession } from "@/lib/billing.functions";
 import { usePaddleCheckout } from "@/hooks/use-paddle-checkout";
-import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 
 export const Route = createFileRoute("/billing")({
   head: () => ({
@@ -87,7 +86,6 @@ function Page() {
 
   return (
     <div className="space-y-6">
-      <PaymentTestModeBanner />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Billing</h1>
         <p className="text-sm text-muted-foreground">Manage your subscription and plan.</p>
