@@ -25,7 +25,6 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AiRepliesRouteImport } from './routes/ai-replies'
 import { Route as AcceptInviteRouteImport } from './routes/accept-invite'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ApiPublicLeadsWebhookRouteImport } from './routes/api/public/leads-webhook'
 import { Route as ApiPublicLeadsIngestRouteImport } from './routes/api/public/leads/ingest'
 
 const TermsRoute = TermsRouteImport.update({
@@ -108,11 +107,6 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicLeadsWebhookRoute = ApiPublicLeadsWebhookRouteImport.update({
-  id: '/api/public/leads-webhook',
-  path: '/api/public/leads-webhook',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiPublicLeadsIngestRoute = ApiPublicLeadsIngestRouteImport.update({
   id: '/api/public/leads/ingest',
   path: '/api/public/leads/ingest',
@@ -136,7 +130,6 @@ export interface FileRoutesByFullPath {
   '/security': typeof SecurityRoute
   '/settings': typeof SettingsRoute
   '/terms': typeof TermsRoute
-  '/api/public/leads-webhook': typeof ApiPublicLeadsWebhookRoute
   '/api/public/leads/ingest': typeof ApiPublicLeadsIngestRoute
 }
 export interface FileRoutesByTo {
@@ -156,7 +149,6 @@ export interface FileRoutesByTo {
   '/security': typeof SecurityRoute
   '/settings': typeof SettingsRoute
   '/terms': typeof TermsRoute
-  '/api/public/leads-webhook': typeof ApiPublicLeadsWebhookRoute
   '/api/public/leads/ingest': typeof ApiPublicLeadsIngestRoute
 }
 export interface FileRoutesById {
@@ -177,7 +169,6 @@ export interface FileRoutesById {
   '/security': typeof SecurityRoute
   '/settings': typeof SettingsRoute
   '/terms': typeof TermsRoute
-  '/api/public/leads-webhook': typeof ApiPublicLeadsWebhookRoute
   '/api/public/leads/ingest': typeof ApiPublicLeadsIngestRoute
 }
 export interface FileRouteTypes {
@@ -199,7 +190,6 @@ export interface FileRouteTypes {
     | '/security'
     | '/settings'
     | '/terms'
-    | '/api/public/leads-webhook'
     | '/api/public/leads/ingest'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -219,7 +209,6 @@ export interface FileRouteTypes {
     | '/security'
     | '/settings'
     | '/terms'
-    | '/api/public/leads-webhook'
     | '/api/public/leads/ingest'
   id:
     | '__root__'
@@ -239,7 +228,6 @@ export interface FileRouteTypes {
     | '/security'
     | '/settings'
     | '/terms'
-    | '/api/public/leads-webhook'
     | '/api/public/leads/ingest'
   fileRoutesById: FileRoutesById
 }
@@ -260,7 +248,6 @@ export interface RootRouteChildren {
   SecurityRoute: typeof SecurityRoute
   SettingsRoute: typeof SettingsRoute
   TermsRoute: typeof TermsRoute
-  ApiPublicLeadsWebhookRoute: typeof ApiPublicLeadsWebhookRoute
   ApiPublicLeadsIngestRoute: typeof ApiPublicLeadsIngestRoute
 }
 
@@ -378,13 +365,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/leads-webhook': {
-      id: '/api/public/leads-webhook'
-      path: '/api/public/leads-webhook'
-      fullPath: '/api/public/leads-webhook'
-      preLoaderRoute: typeof ApiPublicLeadsWebhookRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/leads/ingest': {
       id: '/api/public/leads/ingest'
       path: '/api/public/leads/ingest'
@@ -412,9 +392,18 @@ const rootRouteChildren: RootRouteChildren = {
   SecurityRoute: SecurityRoute,
   SettingsRoute: SettingsRoute,
   TermsRoute: TermsRoute,
-  ApiPublicLeadsWebhookRoute: ApiPublicLeadsWebhookRoute,
   ApiPublicLeadsIngestRoute: ApiPublicLeadsIngestRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

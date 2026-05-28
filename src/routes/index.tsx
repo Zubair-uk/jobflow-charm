@@ -417,7 +417,7 @@ function Dashboard() {
     { label: "New Today", value: leads.filter((l) => new Date(l.created_at) >= todayStart).length, icon: UserPlus, iconColor: "text-info" },
     { label: "Contacted", value: leads.filter((l) => l.status === "Contacted").length, icon: MessageSquare, iconColor: "text-info" },
     { label: "Viewing Booked", value: leads.filter((l) => l.status === "Viewing Booked").length, icon: Calendar, iconColor: "text-amber-500" },
-    { label: "Closed", value: leads.filter((l) => l.status === "Closed").length, icon: CheckCircle2, iconColor: "text-emerald-500" },
+    { label: "Won", value: leads.filter((l) => l.status === "Won").length, icon: CheckCircle2, iconColor: "text-emerald-500" },
   ];
 
   const recent = leads.slice(0, 8);

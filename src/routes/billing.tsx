@@ -25,7 +25,7 @@ const features = [
 function Page() {
   const { plan, trialDaysRemaining, isTrialExpired, trialEndsAt } = useOrg();
   const onUpgrade = () => {
-    toast.info("Stripe checkout coming soon. We'll email you when it's live.");
+    toast.info("Paid plans are coming soon. We'll email you when checkout is live.");
   };
   const planLabel = plan === "free_trial" ? "Free Trial" : plan ?? "—";
   const planBadge = isTrialExpired
