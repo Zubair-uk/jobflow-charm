@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { getPaddleClient, type PaddleEnv } from "@/lib/paddle.server";
 
 function currentPeriod(): string {
   return new Date().toISOString().slice(0, 7); // YYYY-MM
@@ -29,16 +30,18 @@ export const getBillingOverview = createServerFn({ method: "POST" })
       supabaseAdmin
         .from("organizations")
         .select(
-          "id, name, business_name, plan, billing_status, trial_started_at, trial_ends_at, current_period_end, stripe_customer_id, stripe_subscription_id",
+          "id, name, business_name, plan, billing_status, trial_started_at, trial_ends_at, current_period_end, paddle_customer_id, paddle_subscription_id",
         )
         .eq("id", data.organizationId)
         .maybeSingle(),
       supabaseAdmin
         .from("subscriptions")
         .select(
-          "plan_code, status, trial_ends_at, current_period_start, current_period_end, cancel_at_period_end",
+          "plan_code, status, trial_ends_at, current_period_start, current_period_end, cancel_at_period_end, paddle_subscription_id, paddle_customer_id, environment, provider",
         )
         .eq("organization_id", data.organizationId)
+        .order("created_at", { ascending: false })
+        .limit(1)
         .maybeSingle(),
       supabaseAdmin
         .from("usage_counters")
@@ -135,4 +138,41 @@ export const updateTenantSettings = createServerFn({ method: "POST" })
       .eq("id", data.organizationId);
     if (error) throw new Error(error.message);
     return { success: true };
+  });
+
+/**
+ * Create a Paddle customer portal session so the user can manage payment
+ * method, view invoices, or cancel.
+ */
+export const createBillingPortalSession = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { organizationId: string }) =>
+    z.object({ organizationId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertMember(context.userId, data.organizationId);
+
+    const { data: sub } = await supabaseAdmin
+      .from("subscriptions")
+      .select("paddle_subscription_id, paddle_customer_id, environment")
+      .eq("organization_id", data.organizationId)
+      .not("paddle_customer_id", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!sub?.paddle_customer_id) {
+      throw new Error("No active subscription found");
+    }
+
+    const paddle = getPaddleClient(sub.environment as PaddleEnv);
+    const session = await paddle.customerPortalSessions.create(
+      sub.paddle_customer_id,
+      sub.paddle_subscription_id ? [sub.paddle_subscription_id] : [],
+    );
+
+    return {
+      url: session.urls.general.overview,
+      subscriptionUrls: session.urls.subscriptions,
+    };
   });

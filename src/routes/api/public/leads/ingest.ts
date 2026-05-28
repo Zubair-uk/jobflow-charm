@@ -76,13 +76,33 @@ export const Route = createFileRoute("/api/public/leads/ingest")({
         }
 
         const orgId = tokenRow.organization_id;
-        if (!(await orgHasActiveAccess(orgId))) {
+        const { data: access } = await supabaseAdmin.rpc("org_has_billing_access", {
+          _org_id: orgId,
+        });
+        if (!access) {
+          // Fallback to legacy trial check during data backfill
+          if (!(await orgHasActiveAccess(orgId))) {
+            return json(
+              {
+                error: "Subscription required. Upgrade to resume webhook processing.",
+                code: "subscription_required",
+              },
+              402,
+            );
+          }
+        }
+
+        const { data: withinLimit } = await supabaseAdmin.rpc(
+          "org_within_usage_limit",
+          { _org_id: orgId, _field: "leads_processed" },
+        );
+        if (withinLimit === false) {
           return json(
             {
-              error: "Trial expired. Upgrade to resume webhook processing.",
-              code: "trial_expired",
+              error: "Monthly lead limit reached for your plan. Upgrade to continue.",
+              code: "usage_limit_reached",
             },
-            402,
+            429,
           );
         }
 
