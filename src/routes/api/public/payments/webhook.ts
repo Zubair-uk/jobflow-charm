@@ -131,7 +131,13 @@ async function handleSubscriptionUpdated(data: any, env: PaddleEnv) {
     .maybeSingle();
   if (sub?.organization_id) {
     const effectivePlan = planCode ?? sub.plan_code;
-    const orgUpdate: Record<string, unknown> = {
+    const orgUpdate: {
+      billing_status: string;
+      current_period_end: string | null;
+      plan: string;
+      updated_at: string;
+      past_due_since?: string | null;
+    } = {
       billing_status: status,
       current_period_end: currentBillingPeriod?.endsAt ?? null,
       plan: effectivePlan,
