@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Search, Loader2, Users, Sparkles, Mail, Phone, Calendar, Home, Tag, Trash2, Building2 } from "lucide-react";
 import { toast } from "sonner";
@@ -43,7 +43,7 @@ export const Route = createFileRoute("/leads")({
   component: LeadsPage,
 });
 
-export const STATUSES = ["New", "Contacted", "Viewing Booked", "Closed", "Lost", "Test/Demo"] as const;
+export const STATUSES = ["New", "Contacted", "Viewing Booked", "Won", "Lost"] as const;
 export type Status = (typeof STATUSES)[number];
 
 export type Lead = {
@@ -77,12 +77,10 @@ export function statusVariant(status: string) {
       return "bg-info/10 text-info border-info/20";
     case "Viewing Booked":
       return "bg-amber-500/10 text-amber-500 border-amber-500/20";
-    case "Closed":
+    case "Won":
       return "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
     case "Lost":
-      return "bg-muted text-muted-foreground border-border";
-    case "Test/Demo":
-      return "bg-purple-500/10 text-purple-500 border-purple-500/20";
+      return "bg-destructive/10 text-destructive border-destructive/20";
     default:
       return "bg-primary/10 text-primary border-primary/20";
   }
@@ -91,33 +89,15 @@ export function statusVariant(status: string) {
 function LeadsPage() {
   const { user } = useAuth();
   const { orgId } = useOrg();
+  const navigate = useNavigate();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [selected, setSelected] = useState<Lead | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [bulkMode, setBulkMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
-  const [matchedProperty, setMatchedProperty] = useState<MatchedProperty | null>(null);
-
-  useEffect(() => {
-    setMatchedProperty(null);
-    if (!selected?.property_id) return;
-    let cancelled = false;
-    (async () => {
-      const { data } = await supabase
-        .from("properties")
-        .select("id, title, address, city, postcode, status")
-        .eq("id", selected.property_id!)
-        .maybeSingle();
-      if (!cancelled) setMatchedProperty((data as MatchedProperty | null) ?? null);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [selected?.property_id]);
 
   useEffect(() => {
     if (!user) return;
