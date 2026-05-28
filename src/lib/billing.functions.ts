@@ -121,18 +121,17 @@ export const updateTenantSettings = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!member || member.role !== "admin") throw new Error("Forbidden: admin only");
 
-    const patch: Record<string, unknown> = {};
-    if (data.business_name !== undefined) patch.business_name = data.business_name;
-    if (data.ai_tone !== undefined) patch.ai_tone = data.ai_tone;
-    if (data.signature !== undefined) patch.signature = data.signature;
-    if (data.contact_email !== undefined) patch.contact_email = data.contact_email;
-    if (data.contact_phone !== undefined) patch.contact_phone = data.contact_phone;
-    if (data.office_hours !== undefined) patch.office_hours = data.office_hours;
-    patch.updated_at = new Date().toISOString();
-
     const { error } = await supabaseAdmin
       .from("organizations")
-      .update(patch)
+      .update({
+        ...(data.business_name !== undefined && { business_name: data.business_name }),
+        ...(data.ai_tone !== undefined && { ai_tone: data.ai_tone }),
+        ...(data.signature !== undefined && { signature: data.signature }),
+        ...(data.contact_email !== undefined && { contact_email: data.contact_email }),
+        ...(data.contact_phone !== undefined && { contact_phone: data.contact_phone }),
+        ...(data.office_hours !== undefined && { office_hours: data.office_hours }),
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", data.organizationId);
     if (error) throw new Error(error.message);
     return { success: true };
