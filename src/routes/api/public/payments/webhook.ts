@@ -14,6 +14,31 @@ function planCodeFromProduct(productExternalId: string | undefined): string {
   return "free_trial";
 }
 
+function currentPeriodMonth(): string {
+  return new Date().toISOString().slice(0, 7); // YYYY-MM
+}
+
+/**
+ * Business rule (on purchase): activate immediately, end trial, reset usage
+ * counters for the new billing period.
+ */
+async function resetUsageForNewPeriod(organizationId: string) {
+  const period = currentPeriodMonth();
+  await getSupabase()
+    .from("usage_counters")
+    .upsert(
+      {
+        organization_id: organizationId,
+        period_month: period,
+        leads_processed: 0,
+        ai_replies_generated: 0,
+        webhook_calls: 0,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "organization_id,period_month" },
+    );
+}
+
 async function handleSubscriptionCreated(data: any, env: PaddleEnv) {
   const { id, customerId, items, status, currentBillingPeriod, customData } = data;
   const organizationId: string | undefined = customData?.organizationId;
@@ -54,6 +79,8 @@ async function handleSubscriptionCreated(data: any, env: PaddleEnv) {
     { onConflict: "paddle_subscription_id" },
   );
 
+  // Activate immediately, end trial. Reset usage so the new paid period
+  // starts from zero.
   await supabase
     .from("organizations")
     .update({
@@ -62,9 +89,13 @@ async function handleSubscriptionCreated(data: any, env: PaddleEnv) {
       current_period_end: currentBillingPeriod?.endsAt ?? null,
       paddle_customer_id: customerId,
       paddle_subscription_id: id,
+      trial_ends_at: new Date().toISOString(), // trial ends now
+      past_due_since: null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", organizationId);
+
+  await resetUsageForNewPeriod(organizationId);
 }
 
 async function handleSubscriptionUpdated(data: any, env: PaddleEnv) {
@@ -91,27 +122,56 @@ async function handleSubscriptionUpdated(data: any, env: PaddleEnv) {
     .eq("paddle_subscription_id", id)
     .eq("environment", env);
 
-  // Mirror status onto organization
+  // Mirror status onto organization. Upgrades/downgrades apply new tier
+  // (and therefore new limits) immediately. Manage past-due grace window.
   const { data: sub } = await supabase
     .from("subscriptions")
-    .select("organization_id, plan_code")
+    .select("organization_id, plan_code, paddle_customer_id")
     .eq("paddle_subscription_id", id)
     .maybeSingle();
   if (sub?.organization_id) {
-    await supabase
-      .from("organizations")
-      .update({
-        billing_status: status,
-        current_period_end: currentBillingPeriod?.endsAt ?? null,
-        ...(planCode ? { plan: planCode } : { plan: sub.plan_code }),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", sub.organization_id);
+    const effectivePlan = planCode ?? sub.plan_code;
+    const orgUpdate: {
+      billing_status: string;
+      current_period_end: string | null;
+      plan: string;
+      updated_at: string;
+      past_due_since?: string | null;
+    } = {
+      billing_status: status,
+      current_period_end: currentBillingPeriod?.endsAt ?? null,
+      plan: effectivePlan,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (status === "past_due") {
+      // Start the 7-day grace clock once, on the first past_due event.
+      const { data: orgRow } = await supabase
+        .from("organizations")
+        .select("past_due_since")
+        .eq("id", sub.organization_id)
+        .maybeSingle();
+      if (!orgRow?.past_due_since) {
+        orgUpdate.past_due_since = new Date().toISOString();
+      }
+    } else if (status === "active" || status === "trialing") {
+      // Payment recovered — clear the grace clock.
+      orgUpdate.past_due_since = null;
+    }
+
+    await supabase.from("organizations").update(orgUpdate).eq("id", sub.organization_id);
+
+    // Upgrade/downgrade or renewal that landed on a new period: reset usage
+    // counters so limits reflect the new period immediately.
+    if (status === "active" && planCode) {
+      await resetUsageForNewPeriod(sub.organization_id);
+    }
   }
 }
 
 async function handleSubscriptionCanceled(data: any, env: PaddleEnv) {
   const supabase = getSupabase();
+  // Keep current_period_end intact — access continues until that timestamp.
   await supabase
     .from("subscriptions")
     .update({
@@ -135,6 +195,35 @@ async function handleSubscriptionCanceled(data: any, env: PaddleEnv) {
   }
 }
 
+async function handleTransactionPaymentFailed(data: any, env: PaddleEnv) {
+  const subscriptionId: string | undefined = data?.subscriptionId;
+  if (!subscriptionId) return;
+  const supabase = getSupabase();
+  const { data: sub } = await supabase
+    .from("subscriptions")
+    .select("organization_id")
+    .eq("paddle_subscription_id", subscriptionId)
+    .eq("environment", env)
+    .maybeSingle();
+  if (!sub?.organization_id) return;
+
+  const { data: orgRow } = await supabase
+    .from("organizations")
+    .select("past_due_since")
+    .eq("id", sub.organization_id)
+    .maybeSingle();
+  if (!orgRow?.past_due_since) {
+    await supabase
+      .from("organizations")
+      .update({
+        past_due_since: new Date().toISOString(),
+        billing_status: "past_due",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", sub.organization_id);
+  }
+}
+
 async function handleWebhook(req: Request, env: PaddleEnv) {
   const event = await verifyWebhook(req, env);
   switch (event.eventType) {
@@ -146,6 +235,9 @@ async function handleWebhook(req: Request, env: PaddleEnv) {
       break;
     case EventName.SubscriptionCanceled:
       await handleSubscriptionCanceled(event.data, env);
+      break;
+    case EventName.TransactionPaymentFailed:
+      await handleTransactionPaymentFailed(event.data, env);
       break;
     default:
       console.log("[paddle webhook] unhandled event:", event.eventType);
