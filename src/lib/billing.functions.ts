@@ -139,3 +139,40 @@ export const updateTenantSettings = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { success: true };
   });
+
+/**
+ * Create a Paddle customer portal session so the user can manage payment
+ * method, view invoices, or cancel.
+ */
+export const createBillingPortalSession = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { organizationId: string }) =>
+    z.object({ organizationId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertMember(context.userId, data.organizationId);
+
+    const { data: sub } = await supabaseAdmin
+      .from("subscriptions")
+      .select("paddle_subscription_id, paddle_customer_id, environment")
+      .eq("organization_id", data.organizationId)
+      .not("paddle_customer_id", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!sub?.paddle_customer_id) {
+      throw new Error("No active subscription found");
+    }
+
+    const paddle = getPaddleClient(sub.environment as PaddleEnv);
+    const session = await paddle.customerPortalSessions.create(
+      sub.paddle_customer_id,
+      sub.paddle_subscription_id ? [sub.paddle_subscription_id] : [],
+    );
+
+    return {
+      url: session.urls.general.overview,
+      subscriptionUrls: session.urls.subscriptions,
+    };
+  });
