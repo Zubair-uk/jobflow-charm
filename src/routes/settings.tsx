@@ -581,6 +581,96 @@ function Page() {
         </div>
       </Section>
 
+      {/* Business profile (tenant settings) */}
+      {isAdmin && (
+        <Section
+          icon={<Building2 className="h-4 w-4" />}
+          title="Business profile"
+          description="Used by AI to craft replies and shown in client-facing messages."
+        >
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Business name">
+              <Input
+                value={tenant.business_name}
+                onChange={(e) => setTenant({ ...tenant, business_name: e.target.value })}
+                placeholder="Acme Property Co."
+              />
+            </Field>
+            <Field label="AI reply tone">
+              <Select
+                value={tenant.ai_tone}
+                onValueChange={(v) => setTenant({ ...tenant, ai_tone: v as TenantProfile["ai_tone"] })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Professional">Professional</SelectItem>
+                  <SelectItem value="Friendly">Friendly</SelectItem>
+                  <SelectItem value="Luxury">Luxury</SelectItem>
+                  <SelectItem value="Formal">Formal</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Contact email">
+              <Input
+                type="email"
+                value={tenant.contact_email}
+                onChange={(e) => setTenant({ ...tenant, contact_email: e.target.value })}
+                placeholder="hello@acme.com"
+              />
+            </Field>
+            <Field label="Contact phone">
+              <Input
+                value={tenant.contact_phone}
+                onChange={(e) => setTenant({ ...tenant, contact_phone: e.target.value })}
+                placeholder="+44 20 0000 0000"
+              />
+            </Field>
+            <Field label="Mon — Fri hours">
+              <Input
+                value={tenant.office_hours.monday_friday}
+                onChange={(e) => setTenant({ ...tenant, office_hours: { ...tenant.office_hours, monday_friday: e.target.value } })}
+                placeholder="9:00 — 18:00"
+              />
+            </Field>
+            <Field label="Saturday hours">
+              <Input
+                value={tenant.office_hours.saturday}
+                onChange={(e) => setTenant({ ...tenant, office_hours: { ...tenant.office_hours, saturday: e.target.value } })}
+                placeholder="10:00 — 16:00"
+              />
+            </Field>
+            <Field label="Sunday hours">
+              <Input
+                value={tenant.office_hours.sunday}
+                onChange={(e) => setTenant({ ...tenant, office_hours: { ...tenant.office_hours, sunday: e.target.value } })}
+                placeholder="Closed"
+              />
+            </Field>
+            <Field label="Timezone">
+              <Input
+                value={tenant.office_hours.timezone}
+                onChange={(e) => setTenant({ ...tenant, office_hours: { ...tenant.office_hours, timezone: e.target.value } })}
+                placeholder="Europe/London"
+              />
+            </Field>
+            <Field label="Email signature" className="md:col-span-2">
+              <Textarea
+                rows={3}
+                value={tenant.signature}
+                onChange={(e) => setTenant({ ...tenant, signature: e.target.value })}
+                placeholder={"Kind regards,\nThe Acme Property team"}
+              />
+            </Field>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <Button onClick={saveBusinessProfile} disabled={tenantSaving}>
+              {tenantSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+              Save business profile
+            </Button>
+          </div>
+        </Section>
+      )}
+
       {/* Email */}
       <Section icon={<Mail className="h-4 w-4" />} title="Email" description="Email account used to send replies and notifications.">
         <div className="space-y-3">
