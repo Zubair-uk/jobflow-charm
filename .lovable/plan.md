@@ -1,91 +1,118 @@
-# Auth + Multi-Tenant Workspaces for JobFlow AI
+# Native Automation Migration Plan
 
-Auth already exists (login/signup/Google, AuthProvider, route guard in `__root.tsx`). This plan adds the workspace layer on top.
+Goal: replace n8n with native JobFlow AI automation. The existing `/api/public/leads-webhook` and any n8n flows keep working untouched during the entire migration. Native pipeline is built side-by-side and only becomes the default once it's proven per-org.
 
-## 1. Database (one migration)
+## Architecture overview
 
-**New tables**
-- `organizations` — `id`, `name`, `slug`, `owner_id`, `created_at`
-- `organization_members` — `id`, `organization_id`, `user_id`, `role` (`admin`|`agent`|`staff`), `created_at`, unique(`org_id`,`user_id`)
-- `organization_invites` — `id`, `organization_id`, `email`, `role`, `token`, `invited_by`, `accepted_at`, `expires_at`
+```text
+Inbound sources                Native pipeline                       Storage
+---------------                ----------------                      -------
+Gmail (OAuth, per-user) ─┐
+Outlook (OAuth, per-user)├─► ingestEmail() ─► extractLead() ─► matchProperty() ─► leads
+Website webhook forms ───┤        │                │
+n8n (legacy, unchanged) ─┘        │                ├─► generateReply() ─► ai_replies
+                                  │                │
+                                  └─► sendReply() ◄┘   (Gmail/Outlook/Lovable Email)
 
-**Enum:** `app_role` = `admin | agent | staff`
+Per-org config in `integrations` table:
+  provider: gmail | outlook | website_webhook
+  config: { connection_id, webhook_token, auto_reply, signature }
+```
 
-**Existing tables — add `organization_id uuid`** to: `leads`, `ai_replies`, `settings`, `integrations`. Keep `user_id` for backfill and webhook compatibility.
+## What stays as-is (do not touch)
 
-**Backfill:** For every existing auth user without a membership, create an org named "{display_name}'s Workspace" with that user as `admin`. Backfill all existing rows' `organization_id` from `user_id` → that user's org.
+- `src/routes/api/public/leads-webhook.ts` — current n8n entry point.
+- Hardcoded webhook user/org fallback in that route.
+- Existing leads, AI replies, properties, billing, trial logic.
+- `N8N_WEBHOOK_SECRET` and any n8n flows.
 
-**Helper functions (SECURITY DEFINER, avoid RLS recursion):**
-- `current_user_org_id()` → uuid
-- `has_role(_user_id uuid, _org_id uuid, _role app_role)` → bool
-- `is_org_member(_user_id uuid, _org_id uuid)` → bool
+## Phase 1 — Foundations (schema + secrets + shared code)
 
-**Trigger:** on `auth.users` insert → if `raw_user_meta_data.company_name` present, create org + admin membership. Otherwise leave for onboarding screen.
+1. Database migration:
+   - Add `webhook_tokens` table: `id, organization_id, token (unique), label, source ('website'|'gmail'|'outlook'|'generic'), created_by, last_used_at, revoked_at, created_at`. RLS scoped to org admins for read/write; service_role full access. Token is opaque random (32 bytes hex).
+   - Extend `integrations.config` usage (no schema change needed — it's `jsonb`) to store `{ connection_id, scopes, email_address, auto_reply: bool, signature }`.
+   - Add `lead_source` enum-ish text values we'll standardize on: `gmail`, `outlook`, `website`, `n8n`, `manual`.
+2. Secrets: ensure `LOVABLE_API_KEY` is set (already present). No new secrets needed for AI; Gmail/Outlook use the per-user OAuth connector flow (no API keys to store).
+3. Shared server-only modules under `src/lib/automation/`:
+   - `extract-lead.server.ts` — pure helpers (already partly in webhook): `stripHtml`, `extractNameFromSignature`, `extractUkPhone`, `isPlaceholderName`. Move out of the webhook so both pipelines share them.
+   - `ai.server.ts` — Lovable AI Gateway provider (per `ai-sdk-lovable-gateway`).
+   - `match-property.server.ts` — property matching helper from current webhook.
+   - `ingest-lead.server.ts` — single entry: takes a normalized `IncomingLead` ({ orgId, source, fromEmail, fromName, subject, body, rawHtml, receivedAt }), runs extraction → property match → insert → enqueue reply.
+   - `send-reply.server.ts` — abstraction with `sendVia({ provider, connectionId, to, subject, body })` that dispatches to Gmail/Outlook gateway helpers; logs to `ai_replies`.
 
-**Updated RLS (org-scoped):**
-- `leads`, `ai_replies`, `settings`, `integrations`: SELECT/INSERT/UPDATE/DELETE allowed when `organization_id = current_user_org_id()`. Admin can do everything; agent/staff can read/write leads & replies but not settings/integrations (write).
-- `organizations`: members can SELECT; only admins UPDATE.
-- `organization_members`: members SELECT own org; only admins INSERT/UPDATE/DELETE.
-- `organization_invites`: admins manage; anyone can SELECT by token to accept.
+Refactor the existing n8n webhook to call `ingestLead()` so both pipelines share the exact same logic (no behavior change to n8n).
 
-## 2. Webhook compatibility (critical — must not break)
+## Phase 2 — Integrations page + webhook tokens
 
-The webhook currently inserts with `HARDCODED_USER_ID`. To keep n8n working:
-- Look up that user's `organization_id` once per request (server-side, admin client) and write both `user_id` AND `organization_id` on the lead.
-- No payload changes. n8n keeps posting the same body.
+1. New route `src/routes/integrations.tsx` (rebuilt) with three cards:
+   - **Gmail** — "Connect Gmail" button → server fn `startGmailConnect` (uses `authorizeAppUserOAuth` per `tanstack-app-user-connector`); after return, server fn `saveGmailConnection` upserts `integrations` row `{ provider: 'gmail', connected: true, config: { connection_id, email_address, scopes } }`.
+   - **Outlook** — same shape with `microsoft_outlook` connector.
+   - **Website webhook** — list tokens, "Generate token" / "Revoke" buttons. Shows the stable URL: `https://project--becc696a-…-dev.lovable.app/api/public/leads/ingest?token=…` (and prod equivalent).
+2. Server functions (`src/lib/integrations.functions.ts`): admin-only via `requireSupabaseAuth` + role check; never expose `LOVABLE_API_KEY` or connection IDs to non-members.
+3. Return URL route `src/routes/integrations.oauth-return.tsx` parses `connection_id` and persists via `saveGmailConnection` / `saveOutlookConnection`.
 
-## 3. Onboarding
+## Phase 3 — Native website webhook
 
-- New route `/onboarding` (protected). If signed-in user has **no** membership → redirect here from `__root.tsx` guard.
-- Form: company name → creates org + admin membership → redirects to `/`.
+1. New server route `src/routes/api/public/leads/ingest.ts` (TanStack server route, not n8n):
+   - Auth: `?token=…` matched against `webhook_tokens` (active, not revoked), resolves to `organization_id`. Updates `last_used_at`. 401 on bad token.
+   - Trial-active check via existing `orgHasActiveAccess`.
+   - Zod schema for body (looser than n8n; supports `name/email/phone/message/subject/property`).
+   - Calls `ingestLead({ orgId, source: 'website', … })`.
+   - Returns `{ id, created_at }`.
+2. Old `/api/public/leads-webhook` remains untouched — both routes write through `ingestLead`.
 
-## 4. Auth pages
+## Phase 4 — AI: extract + reply
 
-- Existing `/auth` already covers login + signup + Google → keep, add link to forgot password.
-- New `/forgot-password` → `supabase.auth.resetPasswordForEmail`.
-- New `/reset-password` (public) → `supabase.auth.updateUser({ password })`.
+Two server functions in `src/lib/automation/ai.functions.ts`:
 
-## 5. Settings — Team section (real, not local state)
+1. `extractLeadDetails(rawEmail)` — uses `generateText` with `Output.object({ schema })` returning `{ full_name, phone, property_interest, intent, summary }`. Default model `google/gemini-3-flash-preview`. Falls back to regex helpers when the AI call errors/rate-limits (429/402) so ingestion never blocks.
+2. `generateLeadReply({ lead, property, settings })` — `generateText` with system prompt seeded from `settings` (agent name, tone, signature). Returns `{ subject, body }`. Same fallback: on AI error, write nothing and mark `ai_reply` null (lead is still saved).
 
-Rebuild the existing Team block to use Supabase:
-- List `organization_members` joined to `profiles` (name, email via admin lookup server fn).
-- Invite by email → inserts `organization_invites` row, generates token, shows shareable link `/accept-invite?token=…`. (Email sending out of scope for this pass — flagged in note.)
-- Change role / remove member (admin only).
-- New route `/accept-invite` → validates token, creates membership for signed-in user, redirects to `/`.
+Wired inside `ingestLead`:
+```
+extract → upsert lead → if integration.auto_reply: generateReply → sendReply → insert ai_replies (status sent|failed)
+```
 
-## 6. Role-aware UI
+## Phase 5 — Email ingestion (Gmail / Outlook)
 
-- `useOrg()` hook exposes `{ orgId, role, isAdmin }`.
-- Hide Settings → Team/Integrations write actions and Billing destructive actions for non-admins.
-- Server functions enforce role via `has_role()` — UI is hint only.
+Pull model first (simpler than push subscriptions, no extra infra):
 
-## 7. Files touched
+1. Server fn `pollMailbox(orgId, provider)` — uses `callAsAppUser` against gateway:
+   - Gmail: `GET /gmail/v1/users/me/messages?q=is:unread newer_than:1d -label:JOBFLOW_PROCESSED`.
+   - Outlook: `GET /me/messages?$filter=isRead eq false&$top=25`.
+2. For each new message: fetch body, call `ingestLead({ source: provider, … })`, then mark processed (Gmail label, Outlook `isRead: true`).
+3. Trigger: poll on page load of Inbox/Dashboard (cheap, per-org) + a manual "Sync now" button on Integrations. Cron is deferred to Phase 7.
 
-**Created**
-- `supabase/migrations/<ts>_workspaces.sql`
-- `src/routes/onboarding.tsx`
-- `src/routes/forgot-password.tsx`
-- `src/routes/reset-password.tsx`
-- `src/routes/accept-invite.tsx`
-- `src/hooks/use-org.tsx`
-- `src/lib/org.functions.ts` (list members, invite, change role, remove, accept invite — uses `requireSupabaseAuth`)
+## Phase 6 — Reply sending
 
-**Edited**
-- `src/routes/__root.tsx` — onboarding redirect when no membership
-- `src/routes/auth.tsx` — link to forgot password
-- `src/routes/api/public/leads-webhook.ts` — also write `organization_id`
-- `src/routes/settings.tsx` — real Team section, role-gated UI
-- `src/routes/leads.tsx`, `src/routes/index.tsx`, `src/routes/ai-replies.tsx` — query by `organization_id` (RLS does the heavy lifting; queries already use `auth.uid()` via RLS so most code keeps working, but explicit filter for clarity)
+`send-reply.server.ts` dispatches by provider:
+- `gmail`: `POST /gmail/v1/users/me/messages/send` with RFC2822+base64url.
+- `outlook`: `POST /me/sendMail` with JSON payload.
+- `website`/`n8n`/no-mailbox: fall back to Lovable Email (transactional) if configured; otherwise store reply with `status: 'draft'` for the user to send manually.
 
-## What I won't touch
+## Phase 7 — Cutover (NOT in this PR)
 
-- Webhook payload schema / n8n contract
-- Existing AI replies logic
-- Lovable AI / billing pages beyond role-gating destructive actions
+Once the native website webhook is live and per-org Gmail/Outlook is connected:
+- Add a UI toggle `Use native pipeline` per org (default off).
+- When on, ask the user to point n8n at the new URL or disable the n8n flow.
+- After 2 weeks of stable native processing, mark `/api/public/leads-webhook` deprecated (still works, logs a warning header).
 
-## Open questions / notes
+## What I'll build in the first implementation batch
 
-1. **Invite email delivery** — this plan generates a shareable invite link but does NOT send the email. Want me to wire up Lovable transactional email in this pass, or ship the link-copy flow first?
-2. **Existing single-tenant webhook user** — the hardcoded `HARDCODED_USER_ID` will resolve to one org. All n8n leads land there. OK as a starting point; future work would be a per-org webhook secret.
+To keep this PR reviewable, the first batch ships **Phases 1–3** end-to-end:
 
-Reply with answers (or "go") and I'll execute.
+1. Migration: `webhook_tokens` table + RLS + grants.
+2. `src/lib/automation/{extract-lead,match-property,ingest-lead}.server.ts` and a thin refactor of `leads-webhook.ts` to call `ingestLead` (behavior preserved).
+3. `src/lib/integrations.functions.ts` with token CRUD + Gmail/Outlook OAuth start/save (uses `appUserConnector` helper — created if missing).
+4. `src/routes/integrations.tsx` rebuild with the three cards.
+5. `src/routes/api/public/leads/ingest.ts` (org-token webhook), shares `ingestLead`.
+
+Phases 4–6 (AI extract/reply + mailbox poll + send abstraction) land in a follow-up PR so we can validate ingestion + tokens first without touching AI quotas or live mailboxes.
+
+## Risks / open questions
+
+- **Gmail/Outlook connector setup**: per-user OAuth needs `connectorClientId` values. If those aren't provisioned in this workspace, the Connect buttons will surface a clear error and we'll prompt the user to provision via the connector flow before Phase 5.
+- **Webhook token rotation**: users will need to update any external systems pointing at old URLs. UI shows "last used" so they can confirm before revoking.
+- **AI cost/latency at ingest time**: extraction + reply on every inbound email. Phase 4 will gate reply generation behind a per-integration `auto_reply` toggle (default off) so it's opt-in.
+
+Approve to proceed with the first batch (Phases 1–3).
