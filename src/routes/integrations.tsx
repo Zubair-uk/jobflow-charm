@@ -10,12 +10,9 @@ import {
   Inbox,
   Copy,
   Plug,
-  CircleDot,
-  Send,
   Loader2,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
-import { sendTestLeadWebhook, getLeadsDebugInfo } from "@/lib/test-webhook.functions";
 import {
   createWebhookToken,
   listWebhookTokens,
@@ -26,8 +23,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/integrations")({
@@ -92,54 +87,12 @@ const INITIAL: Integration[] = [
     connected: true,
     lastSynced: "Just now",
   },
-  {
-    id: "n8n",
-    name: "n8n Webhook",
-    description: "Trigger n8n workflows whenever a new lead or reply is created.",
-    category: "Automation",
-    icon: Webhook,
-    iconClass: "bg-warning/10 text-warning",
-    connected: false,
-    lastSynced: null,
-  },
 ];
 
 function Page() {
-  const { user } = useAuth();
+  useAuth();
   const { orgId, isAdmin } = useOrg();
-  const webhookUrl =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/api/public/leads-webhook`
-      : "/api/public/leads-webhook";
   const [integrations, setIntegrations] = useState<Integration[]>(INITIAL);
-  const [webhookActive, setWebhookActive] = useState(true);
-  const [testing, setTesting] = useState(false);
-  const [debug, setDebug] = useState<{
-    status: number | string;
-    ok: boolean;
-    body: string;
-  } | null>(null);
-  const [adminDebug, setAdminDebug] = useState<{
-    userId: string;
-    mineCount: number;
-    recent: Array<{ id: string; full_name: string | null; email: string | null; created_at: string }>;
-  } | null>(null);
-  const sendTest = useServerFn(sendTestLeadWebhook);
-  const fetchDebug = useServerFn(getLeadsDebugInfo);
-
-  const refreshDebug = async () => {
-    try {
-      const info = await fetchDebug();
-      setAdminDebug(info);
-    } catch (e) {
-      console.error("[debug] failed", e);
-    }
-  };
-
-  useEffect(() => {
-    if (user) refreshDebug();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
 
   const toggle = (id: string) => {
     setIntegrations((prev) =>
@@ -158,56 +111,6 @@ function Page() {
       toast.success(
         target.connected ? `${target.name} disconnected` : `${target.name} connected`,
       );
-    }
-  };
-
-  const copyWebhook = async () => {
-    try {
-      await navigator.clipboard.writeText(webhookUrl);
-      toast.success("Webhook URL copied to clipboard");
-    } catch {
-      toast.error("Could not copy to clipboard");
-    }
-  };
-
-  const onTestWebhook = async () => {
-    setTesting(true);
-    setDebug(null);
-    try {
-      const result = await sendTest();
-      setDebug({
-        status: result.status,
-        ok: result.ok,
-        body: result.ok ? (result.response ?? "") : (result.error ?? ""),
-      });
-      if (result.ok) {
-        toast.success("Test lead sent — check the Leads page", {
-          description: "A sample lead was delivered through the webhook.",
-        });
-        refreshDebug();
-      } else {
-        toast.error(`Webhook test failed (status ${result.status})`, {
-          description: result.error || "Unknown error",
-        });
-      }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setDebug({ status: "n/a", ok: false, body: msg });
-      toast.error("Webhook test failed", {
-        description: msg,
-      });
-    } finally {
-      setTesting(false);
-    }
-  };
-
-  const copyUserId = async () => {
-    if (!user?.id) return;
-    try {
-      await navigator.clipboard.writeText(user.id);
-      toast.success("User ID copied");
-    } catch {
-      toast.error("Could not copy to clipboard");
     }
   };
 
