@@ -419,7 +419,184 @@ X-Webhook-Secret: <your secret>
           )}
         </CardContent>
       </Card>
+
+      {orgId && isAdmin && <WebhookTokensCard orgId={orgId} />}
     </div>
+  );
+}
+
+type TokenRow = {
+  id: string;
+  label: string;
+  source: string;
+  token: string;
+  created_at: string;
+  last_used_at: string | null;
+  revoked_at: string | null;
+};
+
+function WebhookTokensCard({ orgId }: { orgId: string }) {
+  const [tokens, setTokens] = useState<TokenRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [label, setLabel] = useState("");
+  const listFn = useServerFn(listWebhookTokens);
+  const createFn = useServerFn(createWebhookToken);
+  const revokeFn = useServerFn(revokeWebhookToken);
+
+  const baseUrl =
+    typeof window !== "undefined" ? window.location.origin : "";
+
+  const refresh = async () => {
+    setLoading(true);
+    try {
+      const res = await listFn({ data: { organizationId: orgId } });
+      setTokens(res.tokens as TokenRow[]);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId]);
+
+  const onCreate = async () => {
+    setCreating(true);
+    try {
+      await createFn({
+        data: { organizationId: orgId, label: label.trim() || undefined },
+      });
+      setLabel("");
+      toast.success("Webhook token created");
+      await refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const onRevoke = async (tokenId: string) => {
+    try {
+      await revokeFn({ data: { organizationId: orgId, tokenId } });
+      toast.success("Token revoked");
+      await refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const copy = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("Copied to clipboard");
+    } catch {
+      toast.error("Could not copy");
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-success/10 text-success">
+            <Webhook className="h-5 w-5" />
+          </div>
+          <div className="space-y-0.5">
+            <CardTitle className="text-base">Website webhook tokens (native)</CardTitle>
+            <CardDescription>
+              Org-scoped tokens for the new native ingest endpoint. Use these to
+              receive leads from your website without the legacy n8n setup.
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Input
+            placeholder="Label (e.g. Marketing site)"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            maxLength={80}
+          />
+          <Button onClick={onCreate} disabled={creating} className="shrink-0">
+            {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plug className="h-4 w-4" />}
+            Generate token
+          </Button>
+        </div>
+
+        {loading && (
+          <div className="text-xs text-muted-foreground">Loading tokens…</div>
+        )}
+
+        {!loading && tokens.length === 0 && (
+          <div className="rounded-md border border-dashed border-border p-4 text-xs text-muted-foreground">
+            No tokens yet. Generate one to start receiving native website leads.
+          </div>
+        )}
+
+        <div className="space-y-3">
+          {tokens.map((t) => {
+            const url = `${baseUrl}/api/public/leads/ingest?token=${t.token}`;
+            const revoked = !!t.revoked_at;
+            return (
+              <div
+                key={t.id}
+                className={cn(
+                  "rounded-md border border-border p-3 space-y-2",
+                  revoked && "opacity-60",
+                )}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="space-y-0.5">
+                    <div className="text-sm font-medium text-foreground">
+                      {t.label}
+                      {revoked && (
+                        <Badge variant="outline" className="ml-2 bg-muted text-muted-foreground">
+                          Revoked
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      Created {new Date(t.created_at).toLocaleString()}
+                      {t.last_used_at
+                        ? ` · Last used ${new Date(t.last_used_at).toLocaleString()}`
+                        : " · Never used"}
+                    </div>
+                  </div>
+                  {!revoked && (
+                    <Button size="sm" variant="outline" onClick={() => onRevoke(t.id)}>
+                      Revoke
+                    </Button>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Input readOnly value={url} className="font-mono text-[11px]" />
+                  <Button variant="outline" onClick={() => copy(url)} className="shrink-0">
+                    <Copy className="h-4 w-4" />
+                    Copy
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="rounded-md border border-border bg-muted/30 p-3 text-[11px] text-muted-foreground">
+          POST JSON to the token URL. The endpoint accepts{" "}
+          <code className="rounded bg-muted px-1 py-0.5 font-mono">full_name</code>,{" "}
+          <code className="rounded bg-muted px-1 py-0.5 font-mono">email</code>,{" "}
+          <code className="rounded bg-muted px-1 py-0.5 font-mono">phone</code>,{" "}
+          <code className="rounded bg-muted px-1 py-0.5 font-mono">message</code>,{" "}
+          <code className="rounded bg-muted px-1 py-0.5 font-mono">property_interest</code>.
+          Leads are scoped to your organization automatically — no user_id required.
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
