@@ -537,7 +537,7 @@ function Page() {
       </Section>
 
       {/* Webhook */}
-      <Section icon={<Webhook className="h-4 w-4" />} title="Webhook" description="POST leads to this endpoint from n8n or any external source.">
+      <Section icon={<Webhook className="h-4 w-4" />} title="Native webhook / API" description="POST leads to this JobFlow AI endpoint from your website forms, CRM, or any external source. No third-party automation tools required.">
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <Input readOnly value={webhookUrl} className="font-mono text-xs" />

@@ -290,8 +290,9 @@ function WebhookTokensCard({ orgId }: { orgId: string }) {
           <div className="space-y-0.5">
             <CardTitle className="text-base">Website webhook tokens (native)</CardTitle>
             <CardDescription>
-              Org-scoped tokens for the new native ingest endpoint. Use these to
-              receive leads from your website without the legacy n8n setup.
+              Org-scoped tokens for the JobFlow AI native ingest endpoint. Use
+              these to receive leads from your website forms or any external
+              source — no third-party automation tools required.
             </CardDescription>
           </div>
         </div>
@@ -398,29 +399,5 @@ function StatusBadge({ connected }: { connected: boolean }) {
       />
       {connected ? "Connected" : "Disconnected"}
     </Badge>
-  );
-}
-
-function WebhookStat({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string;
-  tone: "success" | "warning";
-}) {
-  return (
-    <div className="rounded-lg border border-border bg-muted/30 p-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p
-        className={cn(
-          "mt-1 text-sm font-semibold",
-          tone === "success" ? "text-foreground" : "text-warning",
-        )}
-      >
-        {value}
-      </p>
-    </div>
   );
 }
