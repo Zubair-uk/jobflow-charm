@@ -26,6 +26,7 @@ import { Route as AiRepliesRouteImport } from './routes/ai-replies'
 import { Route as AcceptInviteRouteImport } from './routes/accept-invite'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LeadsIdRouteImport } from './routes/leads.$id'
+import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicLeadsIngestRouteImport } from './routes/api/public/leads/ingest'
 
 const TermsRoute = TermsRouteImport.update({
@@ -113,6 +114,12 @@ const LeadsIdRoute = LeadsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => LeadsRoute,
 } as any)
+const ApiPublicPaymentsWebhookRoute =
+  ApiPublicPaymentsWebhookRouteImport.update({
+    id: '/api/public/payments/webhook',
+    path: '/api/public/payments/webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicLeadsIngestRoute = ApiPublicLeadsIngestRouteImport.update({
   id: '/api/public/leads/ingest',
   path: '/api/public/leads/ingest',
@@ -138,6 +145,7 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/leads/$id': typeof LeadsIdRoute
   '/api/public/leads/ingest': typeof ApiPublicLeadsIngestRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -158,6 +166,7 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/leads/$id': typeof LeadsIdRoute
   '/api/public/leads/ingest': typeof ApiPublicLeadsIngestRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -179,6 +188,7 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/leads/$id': typeof LeadsIdRoute
   '/api/public/leads/ingest': typeof ApiPublicLeadsIngestRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -201,6 +211,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/leads/$id'
     | '/api/public/leads/ingest'
+    | '/api/public/payments/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -221,6 +232,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/leads/$id'
     | '/api/public/leads/ingest'
+    | '/api/public/payments/webhook'
   id:
     | '__root__'
     | '/'
@@ -241,6 +253,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/leads/$id'
     | '/api/public/leads/ingest'
+    | '/api/public/payments/webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -261,6 +274,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   TermsRoute: typeof TermsRoute
   ApiPublicLeadsIngestRoute: typeof ApiPublicLeadsIngestRoute
+  ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -384,6 +398,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LeadsIdRouteImport
       parentRoute: typeof LeadsRoute
     }
+    '/api/public/payments/webhook': {
+      id: '/api/public/payments/webhook'
+      path: '/api/public/payments/webhook'
+      fullPath: '/api/public/payments/webhook'
+      preLoaderRoute: typeof ApiPublicPaymentsWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/leads/ingest': {
       id: '/api/public/leads/ingest'
       path: '/api/public/leads/ingest'
@@ -422,7 +443,18 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   TermsRoute: TermsRoute,
   ApiPublicLeadsIngestRoute: ApiPublicLeadsIngestRoute,
+  ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
