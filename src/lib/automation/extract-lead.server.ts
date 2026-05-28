@@ -1,6 +1,6 @@
 // Shared lead-extraction helpers. Server-only so we can call them from
-// both the legacy /api/public/leads-webhook (n8n) and the new native
-// ingestion routes without duplicating logic.
+// the native ingest pipeline (and any future ingest source) without
+// duplicating logic.
 
 export function stripHtml(input: string): string {
   return input

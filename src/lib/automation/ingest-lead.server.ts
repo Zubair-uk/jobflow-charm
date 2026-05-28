@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { Json } from "@/integrations/supabase/types";
 import {
   extractNameFromSignature,
   extractUkPhone,
@@ -7,7 +8,7 @@ import {
 } from "./extract-lead.server";
 import { matchPropertyForOrg } from "./match-property.server";
 
-export type LeadSource = "gmail" | "outlook" | "website" | "n8n" | "manual";
+export type LeadSource = "gmail" | "outlook" | "website" | "manual" | "api";
 
 export interface IncomingLead {
   organizationId: string;
@@ -88,6 +89,49 @@ export async function ingestLead(input: IncomingLead): Promise<IngestResult> {
     .single();
 
   if (error) throw new Error(error.message);
+
+  // Record activity timeline events for this lead. Best-effort: never block
+  // the ingest pipeline if event logging fails.
+  try {
+    const events: Array<{
+      organization_id: string;
+      lead_id: string;
+      event_type: string;
+      message: string;
+      payload: Json;
+    }> = [
+      {
+        organization_id: input.organizationId,
+        lead_id: data.id,
+        event_type: "lead_received",
+        message: `Lead received from ${input.source}`,
+        payload: { source: input.source, email: input.email ?? null },
+      },
+      {
+        organization_id: input.organizationId,
+        lead_id: data.id,
+        event_type: "ai_extraction_completed",
+        message: "AI extraction completed",
+        payload: {
+          extracted_name: extractedName,
+          extracted_phone: extractedPhone,
+          matched_property_id: matchedPropertyId,
+        },
+      },
+    ];
+    if (input.aiReply) {
+      events.push({
+        organization_id: input.organizationId,
+        lead_id: data.id,
+        event_type: "ai_reply_generated",
+        message: "AI reply generated",
+        payload: { length: input.aiReply.length },
+      });
+    }
+    await supabaseAdmin.from("lead_events").insert(events);
+  } catch (e) {
+    console.warn("[ingestLead] event logging failed", e);
+  }
 
   return {
     id: data.id,

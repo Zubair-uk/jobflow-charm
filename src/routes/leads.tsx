@@ -1,18 +1,13 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Search, Loader2, Users, Sparkles, Mail, Phone, Calendar, Home, Tag, Trash2, Building2 } from "lucide-react";
+import { Search, Loader2, Users, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useOrg } from "@/hooks/use-org";
+import { useServerFn } from "@tanstack/react-start";
+import { updateLeadStatus } from "@/lib/leads.functions";
 import { Input } from "@/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,7 +38,7 @@ export const Route = createFileRoute("/leads")({
   component: LeadsPage,
 });
 
-export const STATUSES = ["New", "Contacted", "Viewing Booked", "Closed", "Lost", "Test/Demo"] as const;
+export const STATUSES = ["New", "Contacted", "Viewing Booked", "Won", "Lost"] as const;
 export type Status = (typeof STATUSES)[number];
 
 export type Lead = {
@@ -62,27 +57,16 @@ export type Lead = {
   property_id?: string | null;
 };
 
-type MatchedProperty = {
-  id: string;
-  title: string;
-  address: string | null;
-  city: string | null;
-  postcode: string | null;
-  status: string;
-};
-
 export function statusVariant(status: string) {
   switch (status) {
     case "Contacted":
       return "bg-info/10 text-info border-info/20";
     case "Viewing Booked":
       return "bg-amber-500/10 text-amber-500 border-amber-500/20";
-    case "Closed":
+    case "Won":
       return "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
     case "Lost":
-      return "bg-muted text-muted-foreground border-border";
-    case "Test/Demo":
-      return "bg-purple-500/10 text-purple-500 border-purple-500/20";
+      return "bg-destructive/10 text-destructive border-destructive/20";
     default:
       return "bg-primary/10 text-primary border-primary/20";
   }
@@ -91,33 +75,15 @@ export function statusVariant(status: string) {
 function LeadsPage() {
   const { user } = useAuth();
   const { orgId } = useOrg();
+  const navigate = useNavigate();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [selected, setSelected] = useState<Lead | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [bulkMode, setBulkMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
-  const [matchedProperty, setMatchedProperty] = useState<MatchedProperty | null>(null);
-
-  useEffect(() => {
-    setMatchedProperty(null);
-    if (!selected?.property_id) return;
-    let cancelled = false;
-    (async () => {
-      const { data } = await supabase
-        .from("properties")
-        .select("id, title, address, city, postcode, status")
-        .eq("id", selected.property_id!)
-        .maybeSingle();
-      if (!cancelled) setMatchedProperty((data as MatchedProperty | null) ?? null);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [selected?.property_id]);
 
   useEffect(() => {
     if (!user) return;
@@ -152,7 +118,6 @@ function LeadsPage() {
             }
             if (payload.eventType === "UPDATE") {
               const row = payload.new as Lead;
-              setSelected((s) => (s && s.id === row.id ? row : s));
               return prev.map((l) => (l.id === row.id ? row : l));
             }
             if (payload.eventType === "DELETE") {
@@ -178,16 +143,16 @@ function LeadsPage() {
     });
   }, [leads, search, statusFilter]);
 
+  const updateStatusSrv = useServerFn(updateLeadStatus);
   const onStatusChange = async (lead: Lead, status: string) => {
     const prev = lead.status;
     setLeads((ls) => ls.map((l) => (l.id === lead.id ? { ...l, status } : l)));
-    setSelected((s) => (s && s.id === lead.id ? { ...s, status } : s));
-    const { error } = await supabase.from("leads").update({ status }).eq("id", lead.id);
-    if (error) {
-      toast.error(error.message);
-      setLeads((ls) => ls.map((l) => (l.id === lead.id ? { ...l, status: prev } : l)));
-    } else {
+    try {
+      await updateStatusSrv({ data: { leadId: lead.id, status } });
       toast.success("Status updated");
+    } catch (e) {
+      setLeads((ls) => ls.map((l) => (l.id === lead.id ? { ...l, status: prev } : l)));
+      toast.error(e instanceof Error ? e.message : "Failed to update status");
     }
   };
 
@@ -197,7 +162,6 @@ function LeadsPage() {
       toast.error(error.message);
     } else {
       toast.success("Lead deleted");
-      setSelected((s) => (s && s.id === id ? null : s));
     }
     setDeletingId(null);
   };
@@ -351,7 +315,7 @@ function LeadsPage() {
                 {filtered.map((lead) => (
                   <tr
                     key={lead.id}
-                    onClick={() => !bulkMode && setSelected(lead)}
+                    onClick={() => !bulkMode && navigate({ to: "/leads/$id", params: { id: lead.id } })}
                     className={`border-t border-border hover:bg-muted/30 transition-colors ${
                       bulkMode ? "" : "cursor-pointer"
                     }`}
@@ -422,91 +386,6 @@ function LeadsPage() {
         )}
       </div>
 
-      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          {selected && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="text-xl">{selected.full_name ?? "Unnamed lead"}</DialogTitle>
-                <DialogDescription>
-                  Captured {new Date(selected.created_at).toLocaleString()}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-5">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <InfoRow icon={Mail} label="Email" value={selected.email} />
-                  <InfoRow icon={Phone} label="Phone" value={selected.phone} />
-                  <InfoRow icon={Home} label="Property interest" value={selected.property_interest} />
-                  <InfoRow icon={Tag} label="Source" value={selected.lead_source} />
-                  <InfoRow icon={Calendar} label="Created" value={new Date(selected.created_at).toLocaleString()} />
-                </div>
-
-                <div>
-                  <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Status</label>
-                  <div className="mt-1.5">
-                    <Select
-                      value={STATUSES.includes(selected.status as Status) ? selected.status : "New"}
-                      onValueChange={(v) => onStatusChange(selected, v)}
-                    >
-                      <SelectTrigger className={`w-full sm:w-[200px] border ${statusVariant(selected.status)}`}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {STATUSES.map((s) => (
-                          <SelectItem key={s} value={s}>{s}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Enquiry message</label>
-                  <div className="mt-1.5 rounded-lg border border-border bg-muted/30 p-4 text-sm text-foreground whitespace-pre-wrap">
-                    {selected.message || selected.notes || (
-                      <span className="text-muted-foreground italic">No message provided</span>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                    <Sparkles className="h-3.5 w-3.5 text-primary" /> AI reply
-                  </label>
-                  <div className="mt-1.5 rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm text-foreground whitespace-pre-wrap">
-                    {selected.ai_reply || (
-                      <span className="text-muted-foreground italic">No AI reply yet</span>
-                    )}
-                  </div>
-                </div>
-
-                {matchedProperty && (
-                  <div>
-                    <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                      <Building2 className="h-3.5 w-3.5 text-primary" /> Matched property
-                    </label>
-                    <Link
-                      to="/properties"
-                      className="mt-1.5 block rounded-lg border border-border bg-muted/30 p-4 hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="font-medium text-foreground">{matchedProperty.title}</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">
-                        {[matchedProperty.address, matchedProperty.city, matchedProperty.postcode]
-                          .filter(Boolean)
-                          .join(", ") || "—"}
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1 capitalize">
-                        Status: {matchedProperty.status.replace(/_/g, " ")}
-                      </div>
-                    </Link>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-
       <AlertDialog open={!!deletingId} onOpenChange={(o) => !o && setDeletingId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -550,14 +429,3 @@ function LeadsPage() {
   );
 }
 
-function InfoRow({ icon: Icon, label, value }: { icon: typeof Mail; label: string; value: string | null }) {
-  return (
-    <div className="flex items-start gap-2.5">
-      <Icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-      <div className="min-w-0">
-        <div className="text-xs text-muted-foreground">{label}</div>
-        <div className="text-sm text-foreground truncate">{value || "—"}</div>
-      </div>
-    </div>
-  );
-}

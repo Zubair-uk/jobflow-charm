@@ -20,7 +20,7 @@ const items = [
   { title: "Integrations", url: "/integrations", icon: Plug },
   { title: "Billing", url: "/billing", icon: CreditCard },
   { title: "Settings", url: "/settings", icon: Settings },
-];
+] as const;
 
 export function AppSidebar() {
   const currentPath = useRouterState({ select: (r) => r.location.pathname });

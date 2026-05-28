@@ -10,12 +10,9 @@ import {
   Inbox,
   Copy,
   Plug,
-  CircleDot,
-  Send,
   Loader2,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
-import { sendTestLeadWebhook, getLeadsDebugInfo } from "@/lib/test-webhook.functions";
 import {
   createWebhookToken,
   listWebhookTokens,
@@ -26,8 +23,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/integrations")({
@@ -92,54 +87,12 @@ const INITIAL: Integration[] = [
     connected: true,
     lastSynced: "Just now",
   },
-  {
-    id: "n8n",
-    name: "n8n Webhook",
-    description: "Trigger n8n workflows whenever a new lead or reply is created.",
-    category: "Automation",
-    icon: Webhook,
-    iconClass: "bg-warning/10 text-warning",
-    connected: false,
-    lastSynced: null,
-  },
 ];
 
 function Page() {
-  const { user } = useAuth();
+  useAuth();
   const { orgId, isAdmin } = useOrg();
-  const webhookUrl =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/api/public/leads-webhook`
-      : "/api/public/leads-webhook";
   const [integrations, setIntegrations] = useState<Integration[]>(INITIAL);
-  const [webhookActive, setWebhookActive] = useState(true);
-  const [testing, setTesting] = useState(false);
-  const [debug, setDebug] = useState<{
-    status: number | string;
-    ok: boolean;
-    body: string;
-  } | null>(null);
-  const [adminDebug, setAdminDebug] = useState<{
-    userId: string;
-    mineCount: number;
-    recent: Array<{ id: string; full_name: string | null; email: string | null; created_at: string }>;
-  } | null>(null);
-  const sendTest = useServerFn(sendTestLeadWebhook);
-  const fetchDebug = useServerFn(getLeadsDebugInfo);
-
-  const refreshDebug = async () => {
-    try {
-      const info = await fetchDebug();
-      setAdminDebug(info);
-    } catch (e) {
-      console.error("[debug] failed", e);
-    }
-  };
-
-  useEffect(() => {
-    if (user) refreshDebug();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
 
   const toggle = (id: string) => {
     setIntegrations((prev) =>
@@ -158,56 +111,6 @@ function Page() {
       toast.success(
         target.connected ? `${target.name} disconnected` : `${target.name} connected`,
       );
-    }
-  };
-
-  const copyWebhook = async () => {
-    try {
-      await navigator.clipboard.writeText(webhookUrl);
-      toast.success("Webhook URL copied to clipboard");
-    } catch {
-      toast.error("Could not copy to clipboard");
-    }
-  };
-
-  const onTestWebhook = async () => {
-    setTesting(true);
-    setDebug(null);
-    try {
-      const result = await sendTest();
-      setDebug({
-        status: result.status,
-        ok: result.ok,
-        body: result.ok ? (result.response ?? "") : (result.error ?? ""),
-      });
-      if (result.ok) {
-        toast.success("Test lead sent — check the Leads page", {
-          description: "A sample lead was delivered through the webhook.",
-        });
-        refreshDebug();
-      } else {
-        toast.error(`Webhook test failed (status ${result.status})`, {
-          description: result.error || "Unknown error",
-        });
-      }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setDebug({ status: "n/a", ok: false, body: msg });
-      toast.error("Webhook test failed", {
-        description: msg,
-      });
-    } finally {
-      setTesting(false);
-    }
-  };
-
-  const copyUserId = async () => {
-    if (!user?.id) return;
-    try {
-      await navigator.clipboard.writeText(user.id);
-      toast.success("User ID copied");
-    } catch {
-      toast.error("Could not copy to clipboard");
     }
   };
 
@@ -280,147 +183,25 @@ function Page() {
         })}
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <Webhook className="h-5 w-5" />
-            </div>
-            <div className="space-y-0.5">
-              <CardTitle className="text-base">Webhook settings</CardTitle>
-              <CardDescription>
-                Receive real-time events for new leads, replies, and status changes.
-              </CardDescription>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <span
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
-                webhookActive
-                  ? "bg-success/10 text-success"
-                  : "bg-muted text-muted-foreground",
-              )}
-            >
-              <CircleDot className="h-3 w-3" />
-              {webhookActive ? "Active" : "Paused"}
-            </span>
-            <Switch checked={webhookActive} onCheckedChange={setWebhookActive} />
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="webhook-url" className="text-xs uppercase tracking-wide text-muted-foreground">
-              Webhook URL
-            </Label>
-            <div className="flex gap-2">
-              <Input
-                id="webhook-url"
-                readOnly
-                value={webhookUrl}
-                className="font-mono text-xs"
-              />
-              <Button variant="outline" onClick={copyWebhook} className="shrink-0">
-                <Copy className="h-4 w-4" />
-                Copy
-              </Button>
-              <Button onClick={onTestWebhook} disabled={testing} className="shrink-0">
-                {testing ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4" />
-                )}
-                {testing ? "Sending…" : "Test Webhook"}
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              POST JSON to this URL. Authenticate by sending your shared secret in the{" "}
-              <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">X-Webhook-Secret</code>{" "}
-              header. Include your <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">user_id</code> in the body so the lead is attached to your account.
-            </p>
-          </div>
-
-          {user?.id && (
-            <div className="space-y-2">
-              <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-                Your user_id
-              </Label>
-              <div className="flex gap-2">
-                <Input readOnly value={user.id} className="font-mono text-xs" />
-                <Button variant="outline" onClick={copyUserId} className="shrink-0">
-                  <Copy className="h-4 w-4" />
-                  Copy
-                </Button>
+      {orgId && isAdmin ? (
+        <WebhookTokensCard orgId={orgId} />
+      ) : (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Webhook className="h-5 w-5" />
+              </div>
+              <div>
+                <CardTitle className="text-base">Website webhook</CardTitle>
+                <CardDescription>
+                  Admins can generate ingest tokens in this workspace.
+                </CardDescription>
               </div>
             </div>
-          )}
-
-          <div className="space-y-2">
-            <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-              Example payload
-            </Label>
-            <pre className="overflow-x-auto rounded-md border border-border bg-muted/50 p-3 text-[11px] font-mono leading-relaxed text-foreground">{`POST ${webhookUrl}
-Content-Type: application/json
-X-Webhook-Secret: <your secret>
-
-{
-  "user_id": "${user?.id ?? "<your user_id>"}",
-  "full_name": "Jane Doe",
-  "email": "jane@example.com",
-  "phone": "+1 555 123 4567",
-  "property_interest": "3-bed condo, downtown",
-  "lead_source": "n8n",
-  "status": "New",
-  "ai_reply": "Thanks Jane, here are 3 listings…"
-}`}</pre>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-3">
-            <WebhookStat label="Last delivery" value="32s ago" tone="success" />
-            <WebhookStat label="Success rate (24h)" value="99.8%" tone="success" />
-            <WebhookStat label="Failed (24h)" value="1" tone="warning" />
-          </div>
-
-          {debug && (
-            <div className="space-y-2">
-              <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-                Last test result
-              </Label>
-              <div
-                className={cn(
-                  "rounded-md border p-3 text-xs font-mono",
-                  debug.ok
-                    ? "border-success/30 bg-success/5"
-                    : "border-destructive/30 bg-destructive/5",
-                )}
-              >
-                <div className="mb-1">
-                  <span className="text-muted-foreground">Status: </span>
-                  {String(debug.status)} {debug.ok ? "OK" : "FAIL"}
-                </div>
-                <pre className="overflow-x-auto whitespace-pre-wrap break-all">{debug.body || "(empty body)"}</pre>
-              </div>
-            </div>
-          )}
-
-          {adminDebug && (
-            <div className="space-y-2">
-              <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-                Your account debug info
-              </Label>
-              <div className="rounded-md border border-border bg-muted/30 p-3 text-xs font-mono space-y-1">
-                <div><span className="text-muted-foreground">Auth user_id: </span>{adminDebug.userId}</div>
-                <div><span className="text-muted-foreground">Leads owned by you: </span>{adminDebug.mineCount}</div>
-                <div className="pt-1 text-muted-foreground">Your recent leads:</div>
-                <pre className="overflow-x-auto whitespace-pre-wrap break-all">{JSON.stringify(adminDebug.recent, null, 2)}</pre>
-                <Button size="sm" variant="outline" onClick={refreshDebug}>Refresh</Button>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {orgId && isAdmin && <WebhookTokensCard orgId={orgId} />}
+          </CardHeader>
+        </Card>
+      )}
     </div>
   );
 }

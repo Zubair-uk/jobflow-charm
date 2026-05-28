@@ -25,7 +25,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AiRepliesRouteImport } from './routes/ai-replies'
 import { Route as AcceptInviteRouteImport } from './routes/accept-invite'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ApiPublicLeadsWebhookRouteImport } from './routes/api/public/leads-webhook'
+import { Route as LeadsIdRouteImport } from './routes/leads.$id'
 import { Route as ApiPublicLeadsIngestRouteImport } from './routes/api/public/leads/ingest'
 
 const TermsRoute = TermsRouteImport.update({
@@ -108,10 +108,10 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicLeadsWebhookRoute = ApiPublicLeadsWebhookRouteImport.update({
-  id: '/api/public/leads-webhook',
-  path: '/api/public/leads-webhook',
-  getParentRoute: () => rootRouteImport,
+const LeadsIdRoute = LeadsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => LeadsRoute,
 } as any)
 const ApiPublicLeadsIngestRoute = ApiPublicLeadsIngestRouteImport.update({
   id: '/api/public/leads/ingest',
@@ -128,7 +128,7 @@ export interface FileRoutesByFullPath {
   '/cookies': typeof CookiesRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/integrations': typeof IntegrationsRoute
-  '/leads': typeof LeadsRoute
+  '/leads': typeof LeadsRouteWithChildren
   '/onboarding': typeof OnboardingRoute
   '/privacy': typeof PrivacyRoute
   '/properties': typeof PropertiesRoute
@@ -136,7 +136,7 @@ export interface FileRoutesByFullPath {
   '/security': typeof SecurityRoute
   '/settings': typeof SettingsRoute
   '/terms': typeof TermsRoute
-  '/api/public/leads-webhook': typeof ApiPublicLeadsWebhookRoute
+  '/leads/$id': typeof LeadsIdRoute
   '/api/public/leads/ingest': typeof ApiPublicLeadsIngestRoute
 }
 export interface FileRoutesByTo {
@@ -148,7 +148,7 @@ export interface FileRoutesByTo {
   '/cookies': typeof CookiesRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/integrations': typeof IntegrationsRoute
-  '/leads': typeof LeadsRoute
+  '/leads': typeof LeadsRouteWithChildren
   '/onboarding': typeof OnboardingRoute
   '/privacy': typeof PrivacyRoute
   '/properties': typeof PropertiesRoute
@@ -156,7 +156,7 @@ export interface FileRoutesByTo {
   '/security': typeof SecurityRoute
   '/settings': typeof SettingsRoute
   '/terms': typeof TermsRoute
-  '/api/public/leads-webhook': typeof ApiPublicLeadsWebhookRoute
+  '/leads/$id': typeof LeadsIdRoute
   '/api/public/leads/ingest': typeof ApiPublicLeadsIngestRoute
 }
 export interface FileRoutesById {
@@ -169,7 +169,7 @@ export interface FileRoutesById {
   '/cookies': typeof CookiesRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/integrations': typeof IntegrationsRoute
-  '/leads': typeof LeadsRoute
+  '/leads': typeof LeadsRouteWithChildren
   '/onboarding': typeof OnboardingRoute
   '/privacy': typeof PrivacyRoute
   '/properties': typeof PropertiesRoute
@@ -177,7 +177,7 @@ export interface FileRoutesById {
   '/security': typeof SecurityRoute
   '/settings': typeof SettingsRoute
   '/terms': typeof TermsRoute
-  '/api/public/leads-webhook': typeof ApiPublicLeadsWebhookRoute
+  '/leads/$id': typeof LeadsIdRoute
   '/api/public/leads/ingest': typeof ApiPublicLeadsIngestRoute
 }
 export interface FileRouteTypes {
@@ -199,7 +199,7 @@ export interface FileRouteTypes {
     | '/security'
     | '/settings'
     | '/terms'
-    | '/api/public/leads-webhook'
+    | '/leads/$id'
     | '/api/public/leads/ingest'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -219,7 +219,7 @@ export interface FileRouteTypes {
     | '/security'
     | '/settings'
     | '/terms'
-    | '/api/public/leads-webhook'
+    | '/leads/$id'
     | '/api/public/leads/ingest'
   id:
     | '__root__'
@@ -239,7 +239,7 @@ export interface FileRouteTypes {
     | '/security'
     | '/settings'
     | '/terms'
-    | '/api/public/leads-webhook'
+    | '/leads/$id'
     | '/api/public/leads/ingest'
   fileRoutesById: FileRoutesById
 }
@@ -252,7 +252,7 @@ export interface RootRouteChildren {
   CookiesRoute: typeof CookiesRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   IntegrationsRoute: typeof IntegrationsRoute
-  LeadsRoute: typeof LeadsRoute
+  LeadsRoute: typeof LeadsRouteWithChildren
   OnboardingRoute: typeof OnboardingRoute
   PrivacyRoute: typeof PrivacyRoute
   PropertiesRoute: typeof PropertiesRoute
@@ -260,7 +260,6 @@ export interface RootRouteChildren {
   SecurityRoute: typeof SecurityRoute
   SettingsRoute: typeof SettingsRoute
   TermsRoute: typeof TermsRoute
-  ApiPublicLeadsWebhookRoute: typeof ApiPublicLeadsWebhookRoute
   ApiPublicLeadsIngestRoute: typeof ApiPublicLeadsIngestRoute
 }
 
@@ -378,12 +377,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/leads-webhook': {
-      id: '/api/public/leads-webhook'
-      path: '/api/public/leads-webhook'
-      fullPath: '/api/public/leads-webhook'
-      preLoaderRoute: typeof ApiPublicLeadsWebhookRouteImport
-      parentRoute: typeof rootRouteImport
+    '/leads/$id': {
+      id: '/leads/$id'
+      path: '/$id'
+      fullPath: '/leads/$id'
+      preLoaderRoute: typeof LeadsIdRouteImport
+      parentRoute: typeof LeadsRoute
     }
     '/api/public/leads/ingest': {
       id: '/api/public/leads/ingest'
@@ -395,6 +394,16 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface LeadsRouteChildren {
+  LeadsIdRoute: typeof LeadsIdRoute
+}
+
+const LeadsRouteChildren: LeadsRouteChildren = {
+  LeadsIdRoute: LeadsIdRoute,
+}
+
+const LeadsRouteWithChildren = LeadsRoute._addFileChildren(LeadsRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AcceptInviteRoute: AcceptInviteRoute,
@@ -404,7 +413,7 @@ const rootRouteChildren: RootRouteChildren = {
   CookiesRoute: CookiesRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   IntegrationsRoute: IntegrationsRoute,
-  LeadsRoute: LeadsRoute,
+  LeadsRoute: LeadsRouteWithChildren,
   OnboardingRoute: OnboardingRoute,
   PrivacyRoute: PrivacyRoute,
   PropertiesRoute: PropertiesRoute,
@@ -412,7 +421,6 @@ const rootRouteChildren: RootRouteChildren = {
   SecurityRoute: SecurityRoute,
   SettingsRoute: SettingsRoute,
   TermsRoute: TermsRoute,
-  ApiPublicLeadsWebhookRoute: ApiPublicLeadsWebhookRoute,
   ApiPublicLeadsIngestRoute: ApiPublicLeadsIngestRoute,
 }
 export const routeTree = rootRouteImport
