@@ -17,6 +17,7 @@ import { OrgProvider, useOrg } from "@/hooks/use-org";
 import { Toaster } from "@/components/ui/sonner";
 import { CookieBanner } from "@/components/cookie-banner";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
+import { BillingStatusBanner } from "@/components/BillingStatusBanner";
 import { useEffect } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 
@@ -204,6 +205,7 @@ function AppShell() {
         <AppSidebar />
         <div className="flex-1 flex flex-col">
           <PaymentTestModeBanner />
+          <BillingStatusBanner />
           <header className="h-14 flex items-center justify-between gap-4 border-b border-border bg-card/50 backdrop-blur px-4">
             <div className="flex items-center gap-3">
               <SidebarTrigger />
