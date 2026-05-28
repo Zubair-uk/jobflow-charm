@@ -290,8 +290,9 @@ function WebhookTokensCard({ orgId }: { orgId: string }) {
           <div className="space-y-0.5">
             <CardTitle className="text-base">Website webhook tokens (native)</CardTitle>
             <CardDescription>
-              Org-scoped tokens for the new native ingest endpoint. Use these to
-              receive leads from your website without the legacy n8n setup.
+              Org-scoped tokens for the JobFlow AI native ingest endpoint. Use
+              these to receive leads from your website forms or any external
+              source — no third-party automation tools required.
             </CardDescription>
           </div>
         </div>
