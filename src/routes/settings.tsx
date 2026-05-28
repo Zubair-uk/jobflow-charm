@@ -30,6 +30,7 @@ import {
   removeMember as removeMemberFn,
   revokeInvite,
 } from "@/lib/org.functions";
+import { updateTenantSettings } from "@/lib/billing.functions";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -134,6 +135,26 @@ function Page() {
   const updateRoleFn = useServerFn(updateMemberRole);
   const removeMemberSrv = useServerFn(removeMemberFn);
   const revokeInviteFn = useServerFn(revokeInvite);
+  const saveTenant = useServerFn(updateTenantSettings);
+
+  type TenantProfile = {
+    business_name: string;
+    ai_tone: "Professional" | "Friendly" | "Luxury" | "Formal";
+    signature: string;
+    contact_email: string;
+    contact_phone: string;
+    office_hours: { monday_friday: string; saturday: string; sunday: string; timezone: string };
+  };
+  const defaultTenant: TenantProfile = {
+    business_name: "",
+    ai_tone: "Professional",
+    signature: "",
+    contact_email: "",
+    contact_phone: "",
+    office_hours: { monday_friday: "9:00 — 18:00", saturday: "10:00 — 16:00", sunday: "Closed", timezone: "Europe/London" },
+  };
+  const [tenant, setTenant] = useState<TenantProfile>(defaultTenant);
+  const [tenantSaving, setTenantSaving] = useState(false);
 
   const webhookUrl = useMemo(
     () =>
@@ -183,6 +204,51 @@ function Page() {
     void reloadTeam();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgId]);
+
+  useEffect(() => {
+    if (!orgId) return;
+    (async () => {
+      const { data } = await supabase
+        .from("organizations")
+        .select("business_name, ai_tone, signature, contact_email, contact_phone, office_hours, name")
+        .eq("id", orgId)
+        .maybeSingle();
+      if (!data) return;
+      const oh = (data.office_hours ?? {}) as Partial<TenantProfile["office_hours"]>;
+      setTenant({
+        business_name: data.business_name ?? data.name ?? "",
+        ai_tone: (data.ai_tone as TenantProfile["ai_tone"]) ?? "Professional",
+        signature: data.signature ?? "",
+        contact_email: data.contact_email ?? "",
+        contact_phone: data.contact_phone ?? "",
+        office_hours: { ...defaultTenant.office_hours, ...oh },
+      });
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId]);
+
+  const saveBusinessProfile = async () => {
+    if (!orgId) return;
+    setTenantSaving(true);
+    try {
+      await saveTenant({
+        data: {
+          organizationId: orgId,
+          business_name: tenant.business_name || undefined,
+          ai_tone: tenant.ai_tone,
+          signature: tenant.signature || null,
+          contact_email: tenant.contact_email || null,
+          contact_phone: tenant.contact_phone || null,
+          office_hours: tenant.office_hours,
+        },
+      });
+      toast.success("Business profile saved");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not save");
+    } finally {
+      setTenantSaving(false);
+    }
+  };
 
   const saveKey = async (key: string, value: unknown) => {
     if (!user) return { error: new Error("Not signed in") };
