@@ -290,6 +290,7 @@ export type Database = {
           owner_id: string
           paddle_customer_id: string | null
           paddle_subscription_id: string | null
+          past_due_since: string | null
           plan: string
           signature: string | null
           slug: string | null
@@ -314,6 +315,7 @@ export type Database = {
           owner_id: string
           paddle_customer_id?: string | null
           paddle_subscription_id?: string | null
+          past_due_since?: string | null
           plan?: string
           signature?: string | null
           slug?: string | null
@@ -338,6 +340,7 @@ export type Database = {
           owner_id?: string
           paddle_customer_id?: string | null
           paddle_subscription_id?: string | null
+          past_due_since?: string | null
           plan?: string
           signature?: string | null
           slug?: string | null
