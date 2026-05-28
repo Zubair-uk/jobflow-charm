@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Check, Sparkles, Clock, Activity, Mail, Webhook } from "lucide-react";
+import { Check, Sparkles, Clock, Activity, Mail, Webhook, ExternalLink, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -7,7 +7,9 @@ import { toast } from "sonner";
 import { useOrg } from "@/hooks/use-org";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
-import { getBillingOverview } from "@/lib/billing.functions";
+import { getBillingOverview, createBillingPortalSession } from "@/lib/billing.functions";
+import { usePaddleCheckout } from "@/hooks/use-paddle-checkout";
+import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 
 export const Route = createFileRoute("/billing")({
   head: () => ({
@@ -24,17 +26,44 @@ type Overview = Awaited<ReturnType<typeof getBillingOverview>>;
 function Page() {
   const { orgId } = useOrg();
   const fetchOverview = useServerFn(getBillingOverview);
+  const openPortal = useServerFn(createBillingPortalSession);
   const [overview, setOverview] = useState<Overview | null>(null);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const { openCheckout, loading: checkoutLoading } = usePaddleCheckout();
 
   useEffect(() => {
     if (!orgId) return;
     void fetchOverview({ data: { organizationId: orgId } })
       .then(setOverview)
       .catch(() => toast.error("Could not load billing"));
+    // Show toast on return from successful checkout
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("checkout") === "success") {
+      toast.success("Subscription activated. Welcome aboard!");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
   }, [orgId, fetchOverview]);
 
-  const onUpgrade = () => {
-    toast.info("Paid plans are coming soon. We'll email you when checkout is live.");
+  const onUpgrade = async (priceId: string) => {
+    if (!orgId) return;
+    try {
+      await openCheckout({ priceId, organizationId: orgId });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not open checkout");
+    }
+  };
+
+  const onManage = async () => {
+    if (!orgId) return;
+    setPortalLoading(true);
+    try {
+      const { url } = await openPortal({ data: { organizationId: orgId } });
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not open billing portal");
+    } finally {
+      setPortalLoading(false);
+    }
   };
 
   const plan = overview?.plan;
@@ -43,14 +72,22 @@ function Page() {
   const isTrialExpired = overview?.trial.is_expired ?? false;
   const trialEndsAt = overview?.trial.ends_at ? new Date(overview.trial.ends_at) : null;
   const usage = overview?.usage;
-  const upgradePlan = overview?.plans.find((p) => p.code === "starter");
+  const starterPlan = overview?.plans.find((p) => p.code === "starter");
+  const proPlan = overview?.plans.find((p) => p.code === "pro");
+  const hasPaidSubscription =
+    !!overview?.subscription?.paddle_subscription_id &&
+    overview.subscription.status !== "canceled";
+  const currentPlanCode = overview?.subscription?.plan_code ?? overview?.organization?.plan ?? "free_trial";
 
   const planBadge = isTrialExpired
     ? { className: "bg-destructive/10 text-destructive border-destructive/20", text: "Expired" }
-    : { className: "bg-info/10 text-info border-info/20", text: "Active" };
+    : hasPaidSubscription
+      ? { className: "bg-success/10 text-success border-success/20", text: overview?.subscription?.status ?? "Active" }
+      : { className: "bg-info/10 text-info border-info/20", text: "Trialing" };
 
   return (
     <div className="space-y-6">
+      <PaymentTestModeBanner />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Billing</h1>
         <p className="text-sm text-muted-foreground">Manage your subscription and plan.</p>
@@ -64,7 +101,7 @@ function Page() {
               <h2 className="text-xl font-semibold text-foreground">{planLabel}</h2>
               <Badge variant="outline" className={planBadge.className}>{planBadge.text}</Badge>
             </div>
-            {plan?.code === "free_trial" && trialEndsAt && (
+            {currentPlanCode === "free_trial" && trialEndsAt && (
               <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1.5">
                 <Clock className="h-3 w-3" />
                 {isTrialExpired
@@ -73,9 +110,17 @@ function Page() {
               </p>
             )}
           </div>
-          <Button onClick={onUpgrade}>
-            <Sparkles className="h-4 w-4" /> Upgrade
-          </Button>
+          {hasPaidSubscription ? (
+            <Button variant="outline" onClick={onManage} disabled={portalLoading}>
+              {portalLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
+              Manage subscription
+            </Button>
+          ) : (
+            <Button onClick={() => onUpgrade("starter_monthly")} disabled={checkoutLoading}>
+              {checkoutLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              Upgrade
+            </Button>
+          )}
         </div>
       </div>
 
@@ -111,56 +156,112 @@ function Page() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <div className="rounded-xl border-2 border-primary bg-card p-6 shadow-[var(--shadow-elegant)] relative overflow-hidden">
-          <div className="absolute -top-12 -right-12 h-32 w-32 rounded-full bg-gradient-to-br from-primary/30 to-primary/5 blur-2xl" />
-          <div className="relative">
-            <div className="flex items-center gap-2 mb-1">
-              <Sparkles className="h-4 w-4 text-primary" />
-              <span className="text-xs font-semibold uppercase tracking-wider text-primary">Most popular</span>
-            </div>
-            <h3 className="text-2xl font-semibold text-foreground">{upgradePlan?.name ?? "Starter"}</h3>
-            <div className="mt-3 flex items-baseline gap-1">
-              <span className="text-4xl font-bold text-foreground">
-                £{((upgradePlan?.price_cents ?? 9900) / 100).toFixed(0)}
-              </span>
-              <span className="text-sm text-muted-foreground">/month</span>
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              Everything you need to capture and convert leads.
-            </p>
-            <ul className="mt-5 space-y-2.5">
-              {((upgradePlan?.features as string[] | undefined) ?? [
-                "AI lead capture",
-                "Auto replies",
-                "CRM dashboard",
-                "Email automation",
-              ]).map((f) => (
-                <li key={f} className="flex items-center gap-2 text-sm text-foreground">
-                  <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <Check className="h-3 w-3 text-primary" />
-                  </div>
-                  {f}
-                </li>
-              ))}
-            </ul>
-            <Button className="w-full mt-6" onClick={onUpgrade}>
-              Upgrade to {upgradePlan?.name ?? "Starter"}
-            </Button>
-          </div>
-        </div>
+        <PlanCard
+          plan={starterPlan}
+          fallbackName="Starter"
+          fallbackPrice={3900}
+          fallbackFeatures={[
+            "AI lead CRM",
+            "Native webhook/API ingest",
+            "AI extraction & replies",
+            "Email automation",
+            "Up to 200 leads/month",
+          ]}
+          highlight
+          currentPlanCode={currentPlanCode}
+          planCode="starter"
+          loading={checkoutLoading}
+          onUpgrade={() => onUpgrade("starter_monthly")}
+        />
+        <PlanCard
+          plan={proPlan}
+          fallbackName="Pro"
+          fallbackPrice={9900}
+          fallbackFeatures={[
+            "Everything in Starter",
+            "Unlimited leads",
+            "Multiple team members",
+            "Advanced analytics",
+            "Priority support",
+          ]}
+          currentPlanCode={currentPlanCode}
+          planCode="pro"
+          loading={checkoutLoading}
+          onUpgrade={() => onUpgrade("pro_monthly")}
+        />
+      </div>
+    </div>
+  );
+}
 
-        <div className="rounded-xl border border-border bg-card p-6">
-          <h3 className="font-semibold text-foreground">Need more?</h3>
-          <p className="text-sm text-muted-foreground mt-1">
-            Custom plans for larger teams and agencies are coming soon. Get in touch to discuss.
-          </p>
-          <div className="mt-4 space-y-2 text-sm text-muted-foreground">
-            <p>· Unlimited leads & AI replies</p>
-            <p>· Multi-user accounts</p>
-            <p>· Custom integrations</p>
-            <p>· Priority support</p>
+function PlanCard({
+  plan,
+  fallbackName,
+  fallbackPrice,
+  fallbackFeatures,
+  highlight,
+  currentPlanCode,
+  planCode,
+  loading,
+  onUpgrade,
+}: {
+  plan: { name: string; price_cents: number; features: unknown } | null | undefined;
+  fallbackName: string;
+  fallbackPrice: number;
+  fallbackFeatures: string[];
+  highlight?: boolean;
+  currentPlanCode: string;
+  planCode: "starter" | "pro";
+  loading: boolean;
+  onUpgrade: () => void;
+}) {
+  const isCurrent = currentPlanCode === planCode;
+  const features = (plan?.features as string[] | undefined) ?? fallbackFeatures;
+  return (
+    <div
+      className={
+        highlight
+          ? "rounded-xl border-2 border-primary bg-card p-6 shadow-[var(--shadow-elegant)] relative overflow-hidden"
+          : "rounded-xl border border-border bg-card p-6 relative"
+      }
+    >
+      {highlight && (
+        <div className="absolute -top-12 -right-12 h-32 w-32 rounded-full bg-gradient-to-br from-primary/30 to-primary/5 blur-2xl" />
+      )}
+      <div className="relative">
+        {highlight && (
+          <div className="flex items-center gap-2 mb-1">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-primary">
+              Most popular
+            </span>
           </div>
+        )}
+        <h3 className="text-2xl font-semibold text-foreground">{plan?.name ?? fallbackName}</h3>
+        <div className="mt-3 flex items-baseline gap-1">
+          <span className="text-4xl font-bold text-foreground">
+            £{((plan?.price_cents ?? fallbackPrice) / 100).toFixed(0)}
+          </span>
+          <span className="text-sm text-muted-foreground">/month</span>
         </div>
+        <ul className="mt-5 space-y-2.5">
+          {features.map((f) => (
+            <li key={f} className="flex items-center gap-2 text-sm text-foreground">
+              <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <Check className="h-3 w-3 text-primary" />
+              </div>
+              {f}
+            </li>
+          ))}
+        </ul>
+        <Button
+          className="w-full mt-6"
+          variant={highlight ? "default" : "outline"}
+          onClick={onUpgrade}
+          disabled={loading || isCurrent}
+        >
+          {isCurrent ? "Current plan" : `Upgrade to ${plan?.name ?? fallbackName}`}
+        </Button>
       </div>
     </div>
   );
