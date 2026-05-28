@@ -288,6 +288,8 @@ export type Database = {
           office_hours: Json
           onboarding_completed_at: string | null
           owner_id: string
+          paddle_customer_id: string | null
+          paddle_subscription_id: string | null
           plan: string
           signature: string | null
           slug: string | null
@@ -310,6 +312,8 @@ export type Database = {
           office_hours?: Json
           onboarding_completed_at?: string | null
           owner_id: string
+          paddle_customer_id?: string | null
+          paddle_subscription_id?: string | null
           plan?: string
           signature?: string | null
           slug?: string | null
@@ -332,6 +336,8 @@ export type Database = {
           office_hours?: Json
           onboarding_completed_at?: string | null
           owner_id?: string
+          paddle_customer_id?: string | null
+          paddle_subscription_id?: string | null
           plan?: string
           signature?: string | null
           slug?: string | null
@@ -517,9 +523,15 @@ export type Database = {
           created_at: string
           current_period_end: string | null
           current_period_start: string | null
+          environment: string
           id: string
           organization_id: string
+          paddle_customer_id: string | null
+          paddle_subscription_id: string | null
           plan_code: string
+          price_id: string | null
+          product_id: string | null
+          provider: string
           status: string
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
@@ -531,9 +543,15 @@ export type Database = {
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string | null
+          environment?: string
           id?: string
           organization_id: string
+          paddle_customer_id?: string | null
+          paddle_subscription_id?: string | null
           plan_code?: string
+          price_id?: string | null
+          product_id?: string | null
+          provider?: string
           status?: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
@@ -545,9 +563,15 @@ export type Database = {
           created_at?: string
           current_period_end?: string | null
           current_period_start?: string | null
+          environment?: string
           id?: string
           organization_id?: string
+          paddle_customer_id?: string | null
+          paddle_subscription_id?: string | null
           plan_code?: string
+          price_id?: string | null
+          product_id?: string | null
+          provider?: string
           status?: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
@@ -656,6 +680,11 @@ export type Database = {
         Returns: boolean
       }
       org_has_active_access: { Args: { _org_id: string }; Returns: boolean }
+      org_has_billing_access: { Args: { _org_id: string }; Returns: boolean }
+      org_within_usage_limit: {
+        Args: { _field: string; _org_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "agent" | "staff"
