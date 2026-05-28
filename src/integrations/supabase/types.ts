@@ -97,6 +97,39 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_events: {
+        Row: {
+          actor_user_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          lead_id: string
+          message: string | null
+          organization_id: string
+          payload: Json
+        }
+        Insert: {
+          actor_user_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          lead_id: string
+          message?: string | null
+          organization_id: string
+          payload?: Json
+        }
+        Update: {
+          actor_user_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          lead_id?: string
+          message?: string | null
+          organization_id?: string
+          payload?: Json
+        }
+        Relationships: []
+      }
       leads: {
         Row: {
           ai_reply: string | null
