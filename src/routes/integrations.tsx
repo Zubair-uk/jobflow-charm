@@ -16,6 +16,12 @@ import {
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { sendTestLeadWebhook, getLeadsDebugInfo } from "@/lib/test-webhook.functions";
+import {
+  createWebhookToken,
+  listWebhookTokens,
+  revokeWebhookToken,
+} from "@/lib/integrations.functions";
+import { useOrg } from "@/hooks/use-org";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -100,6 +106,7 @@ const INITIAL: Integration[] = [
 
 function Page() {
   const { user } = useAuth();
+  const { orgId, isAdmin } = useOrg();
   const webhookUrl =
     typeof window !== "undefined"
       ? `${window.location.origin}/api/public/leads-webhook`
