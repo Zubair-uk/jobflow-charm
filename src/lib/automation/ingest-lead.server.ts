@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { Json } from "@/integrations/supabase/types";
 import {
   extractNameFromSignature,
   extractUkPhone,
@@ -97,7 +98,7 @@ export async function ingestLead(input: IncomingLead): Promise<IngestResult> {
       lead_id: string;
       event_type: string;
       message: string;
-      payload: Record<string, unknown>;
+      payload: Json;
     }> = [
       {
         organization_id: input.organizationId,
