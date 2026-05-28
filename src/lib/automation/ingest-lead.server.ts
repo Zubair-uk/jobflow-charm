@@ -133,6 +133,24 @@ export async function ingestLead(input: IncomingLead): Promise<IngestResult> {
     console.warn("[ingestLead] event logging failed", e);
   }
 
+  // Bump monthly usage counters. Best-effort: never block ingestion.
+  try {
+    await supabaseAdmin.rpc("increment_usage", {
+      _organization_id: input.organizationId,
+      _field: "leads_processed",
+      _amount: 1,
+    });
+    if (input.aiReply) {
+      await supabaseAdmin.rpc("increment_usage", {
+        _organization_id: input.organizationId,
+        _field: "ai_replies_generated",
+        _amount: 1,
+      });
+    }
+  } catch (e) {
+    console.warn("[ingestLead] usage increment failed", e);
+  }
+
   return {
     id: data.id,
     created_at: data.created_at,

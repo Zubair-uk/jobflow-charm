@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { randomBytes } from "crypto";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
@@ -12,9 +13,19 @@ export const createWorkspace = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { userId } = context;
+    const trialEndsAt = new Date(Date.now() + 7 * 86_400_000).toISOString();
     const { data: org, error } = await supabaseAdmin
       .from("organizations")
-      .insert({ name: data.name, owner_id: userId })
+      .insert({
+        name: data.name,
+        business_name: data.name,
+        owner_id: userId,
+        plan: "free_trial",
+        billing_status: "trialing",
+        trial_ends_at: trialEndsAt,
+        ai_tone: "Professional",
+        onboarding_completed_at: new Date().toISOString(),
+      })
       .select("id, name")
       .single();
     if (error) throw new Error(error.message);
@@ -23,6 +34,27 @@ export const createWorkspace = createServerFn({ method: "POST" })
       .from("organization_members")
       .insert({ organization_id: org.id, user_id: userId, role: "admin" });
     if (memErr) throw new Error(memErr.message);
+
+    // Seed default subscription (free trial)
+    await supabaseAdmin
+      .from("subscriptions")
+      .insert({
+        organization_id: org.id,
+        plan_code: "free_trial",
+        status: "trialing",
+        trial_ends_at: trialEndsAt,
+      });
+
+    // Seed default webhook token so the org can immediately receive leads
+    await supabaseAdmin
+      .from("webhook_tokens")
+      .insert({
+        organization_id: org.id,
+        token: randomBytes(32).toString("hex"),
+        label: "Default website",
+        source: "website",
+        created_by: userId,
+      });
 
     return { organization_id: org.id, name: org.name };
   });
