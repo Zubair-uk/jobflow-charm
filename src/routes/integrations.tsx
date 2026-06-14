@@ -18,6 +18,7 @@ import {
   listWebhookTokens,
   revokeWebhookToken,
 } from "@/lib/integrations.functions";
+import { getGmailConnection, disconnectGmail } from "@/lib/gmail.functions";
 import { useOrg } from "@/hooks/use-org";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -28,93 +29,85 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/integrations")({
   head: () => ({
     meta: [
-      { title: "Integrations — JobFlow AI" },
+      { title: "Integrations – JobFlow AI" },
       { name: "description", content: "Integrations for JobFlow AI." },
     ],
   }),
   component: Page,
 });
 
-type Integration = {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-  icon: React.ComponentType<{ className?: string }>;
-  iconClass: string;
-  connected: boolean;
-  lastSynced: string | null;
-};
-
-const INITIAL: Integration[] = [
-  {
-    id: "outlook",
-    name: "Microsoft Outlook",
-    description: "Sync inbox and send AI-drafted replies from your Outlook account.",
-    category: "Email",
-    icon: Inbox,
-    iconClass: "bg-info/10 text-info",
-    connected: true,
-    lastSynced: "2 minutes ago",
-  },
-  {
-    id: "gmail",
-    name: "Gmail",
-    description: "Connect Gmail to capture leads and automate responses.",
-    category: "Email",
-    icon: Mail,
-    iconClass: "bg-destructive/10 text-destructive",
-    connected: true,
-    lastSynced: "12 minutes ago",
-  },
-  {
-    id: "sheets",
-    name: "Google Sheets",
-    description: "Export leads and AI activity to a live spreadsheet.",
-    category: "Data",
-    icon: Sheet,
-    iconClass: "bg-success/10 text-success",
-    connected: false,
-    lastSynced: null,
-  },
-  {
-    id: "openai",
-    name: "OpenAI",
-    description: "Power AI replies and lead scoring with your own OpenAI key.",
-    category: "AI",
-    icon: Sparkles,
-    iconClass: "bg-primary/10 text-primary",
-    connected: true,
-    lastSynced: "Just now",
-  },
-];
-
 function Page() {
   useAuth();
   const { orgId, isAdmin } = useOrg();
-  const [integrations, setIntegrations] = useState<Integration[]>(INITIAL);
 
-  const toggle = (id: string) => {
-    setIntegrations((prev) =>
-      prev.map((i) =>
-        i.id === id
-          ? {
-              ...i,
-              connected: !i.connected,
-              lastSynced: !i.connected ? "Just now" : null,
-            }
-          : i,
-      ),
-    );
-    const target = integrations.find((i) => i.id === id);
-    if (target) {
-      toast.success(
-        target.connected ? `${target.name} disconnected` : `${target.name} connected`,
-      );
+  // Gmail connection state
+  const [gmailConnected, setGmailConnected] = useState(false);
+  const [gmailEmail, setGmailEmail] = useState<string | null>(null);
+  const [gmailLoading, setGmailLoading] = useState(false);
+  const [gmailChecking, setGmailChecking] = useState(true);
+
+  const getGmailFn = useServerFn(getGmailConnection);
+  const disconnectGmailFn = useServerFn(disconnectGmail);
+
+  // Check Gmail connection status on load
+  useEffect(() => {
+    if (!orgId) return;
+
+    const checkGmail = async () => {
+      setGmailChecking(true);
+      try {
+        const res = await getGmailFn({ data: { organizationId: orgId } });
+        setGmailConnected(res.connected);
+        setGmailEmail(res.gmailEmail);
+      } catch {
+        // not connected
+      } finally {
+        setGmailChecking(false);
+      }
+    };
+
+    void checkGmail();
+
+    // Handle redirect back from Google OAuth
+    const params = new URLSearchParams(window.location.search);
+    const gmailStatus = params.get("gmail");
+    if (gmailStatus === "connected") {
+      toast.success("Gmail connected successfully!");
+      // Clean up URL
+      window.history.replaceState({}, "", "/integrations");
+      void checkGmail();
+    } else if (gmailStatus === "denied") {
+      toast.error("Gmail connection was cancelled.");
+      window.history.replaceState({}, "", "/integrations");
+    } else if (gmailStatus === "error") {
+      toast.error("Gmail connection failed. Please try again.");
+      window.history.replaceState({}, "", "/integrations");
+    }
+  }, [orgId]);
+
+  const handleGmailConnect = () => {
+    if (!orgId) return;
+    // Redirect to our OAuth start route
+    window.location.href = `/api/auth/gmail/start?orgId=${orgId}`;
+  };
+
+  const handleGmailDisconnect = async () => {
+    if (!orgId) return;
+    setGmailLoading(true);
+    try {
+      await disconnectGmailFn({ data: { organizationId: orgId } });
+      setGmailConnected(false);
+      setGmailEmail(null);
+      toast.success("Gmail disconnected");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to disconnect Gmail");
+    } finally {
+      setGmailLoading(false);
     }
   };
 
-  const connectedCount = integrations.filter((i) => i.connected).length;
+  const connectedCount = [gmailConnected, true /* openai */].filter(Boolean).length;
+  const totalCount = 4;
 
   return (
     <div className="space-y-8">
@@ -129,58 +122,151 @@ function Page() {
           <Plug className="h-4 w-4 text-primary" />
           <span>
             <span className="font-medium text-foreground">{connectedCount}</span> of{" "}
-            {integrations.length} connected
+            {totalCount} connected
           </span>
         </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {integrations.map((integration) => {
-          const Icon = integration.icon;
-          return (
-            <Card
-              key={integration.id}
-              className="group flex flex-col transition-shadow hover:shadow-[var(--shadow-elegant)]"
-            >
-              <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
-                <div className="flex items-center gap-3">
-                  <div
-                    className={cn(
-                      "flex h-11 w-11 items-center justify-center rounded-lg",
-                      integration.iconClass,
-                    )}
-                  >
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <div className="space-y-0.5">
-                    <CardTitle className="text-base">{integration.name}</CardTitle>
-                    <CardDescription className="text-xs">
-                      {integration.category}
-                    </CardDescription>
-                  </div>
-                </div>
-                <StatusBadge connected={integration.connected} />
-              </CardHeader>
-              <CardContent className="flex flex-1 flex-col justify-between gap-4">
-                <p className="text-sm text-muted-foreground">{integration.description}</p>
-                <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
-                  <span className="text-xs text-muted-foreground">
-                    {integration.connected
-                      ? `Last synced ${integration.lastSynced}`
-                      : "Never synced"}
-                  </span>
-                  <Button
-                    size="sm"
-                    variant={integration.connected ? "outline" : "default"}
-                    onClick={() => toggle(integration.id)}
-                  >
-                    {integration.connected ? "Disconnect" : "Connect"}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+
+        {/* Gmail — Real OAuth */}
+        <Card className="group flex flex-col transition-shadow hover:shadow-[var(--shadow-elegant)]">
+          <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
+                <Mail className="h-5 w-5" />
+              </div>
+              <div className="space-y-0.5">
+                <CardTitle className="text-base">Gmail</CardTitle>
+                <CardDescription className="text-xs">Email</CardDescription>
+              </div>
+            </div>
+            {gmailChecking ? (
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            ) : (
+              <StatusBadge connected={gmailConnected} />
+            )}
+          </CardHeader>
+          <CardContent className="flex flex-1 flex-col justify-between gap-4">
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">
+                Connect Gmail to send AI-drafted replies directly from your own email address.
+              </p>
+              {gmailConnected && gmailEmail && (
+                <p className="text-xs font-medium text-foreground">{gmailEmail}</p>
+              )}
+            </div>
+            <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
+              <span className="text-xs text-muted-foreground">
+                {gmailConnected ? "Connected via OAuth" : "Never connected"}
+              </span>
+              {gmailConnected ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleGmailDisconnect}
+                  disabled={gmailLoading}
+                >
+                  {gmailLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : "Disconnect"}
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={handleGmailConnect}
+                  disabled={gmailChecking || !orgId}
+                >
+                  Connect
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Microsoft Outlook — Coming Soon */}
+        <Card className="group flex flex-col transition-shadow hover:shadow-[var(--shadow-elegant)]">
+          <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-info/10 text-info">
+                <Inbox className="h-5 w-5" />
+              </div>
+              <div className="space-y-0.5">
+                <CardTitle className="text-base">Microsoft Outlook</CardTitle>
+                <CardDescription className="text-xs">Email</CardDescription>
+              </div>
+            </div>
+            <Badge variant="outline" className="gap-1.5 border-transparent bg-muted text-muted-foreground">
+              Coming soon
+            </Badge>
+          </CardHeader>
+          <CardContent className="flex flex-1 flex-col justify-between gap-4">
+            <p className="text-sm text-muted-foreground">
+              Sync inbox and send AI-drafted replies from your Outlook account.
+            </p>
+            <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
+              <span className="text-xs text-muted-foreground">Not available yet</span>
+              <Button size="sm" variant="outline" disabled>
+                Coming soon
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Google Sheets — Coming Soon */}
+        <Card className="group flex flex-col transition-shadow hover:shadow-[var(--shadow-elegant)]">
+          <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-success/10 text-success">
+                <Sheet className="h-5 w-5" />
+              </div>
+              <div className="space-y-0.5">
+                <CardTitle className="text-base">Google Sheets</CardTitle>
+                <CardDescription className="text-xs">Data</CardDescription>
+              </div>
+            </div>
+            <Badge variant="outline" className="gap-1.5 border-transparent bg-muted text-muted-foreground">
+              Coming soon
+            </Badge>
+          </CardHeader>
+          <CardContent className="flex flex-1 flex-col justify-between gap-4">
+            <p className="text-sm text-muted-foreground">
+              Export leads and AI activity to a live spreadsheet automatically.
+            </p>
+            <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
+              <span className="text-xs text-muted-foreground">Not available yet</span>
+              <Button size="sm" variant="outline" disabled>
+                Coming soon
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* OpenAI — Always Connected */}
+        <Card className="group flex flex-col transition-shadow hover:shadow-[var(--shadow-elegant)]">
+          <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <div className="space-y-0.5">
+                <CardTitle className="text-base">OpenAI</CardTitle>
+                <CardDescription className="text-xs">AI</CardDescription>
+              </div>
+            </div>
+            <StatusBadge connected={true} />
+          </CardHeader>
+          <CardContent className="flex flex-1 flex-col justify-between gap-4">
+            <p className="text-sm text-muted-foreground">
+              Powers AI replies and lead scoring with GPT-4o mini.
+            </p>
+            <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
+              <span className="text-xs text-muted-foreground">Last synced just now</span>
+              <Button size="sm" variant="outline" disabled>
+                Managed
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
       </div>
 
       {orgId && isAdmin ? (
