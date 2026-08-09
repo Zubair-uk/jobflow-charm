@@ -38,7 +38,7 @@ function Page() {
     // Show toast on return from successful checkout
     const params = new URLSearchParams(window.location.search);
     if (params.get("checkout") === "success") {
-      toast.success("Subscription activated. Welcome aboard!");
+      toast.success("Lifetime access activated. Welcome aboard!");
       window.history.replaceState({}, "", window.location.pathname);
     }
   }, [orgId, fetchOverview]);
@@ -71,18 +71,23 @@ function Page() {
   const isTrialExpired = overview?.trial.is_expired ?? false;
   const trialEndsAt = overview?.trial.ends_at ? new Date(overview.trial.ends_at) : null;
   const usage = overview?.usage;
-  const starterPlan = overview?.plans.find((p) => p.code === "starter");
-  const proPlan = overview?.plans.find((p) => p.code === "pro");
+  const lifetimePlan = overview?.plans.find((p) => p.code === "lifetime");
+  const currentPlanCode = overview?.subscription?.plan_code ?? overview?.organization?.plan ?? "free_trial";
+  const isLifetime = currentPlanCode === "lifetime";
+  // Lifetime is a one-time purchase, not a recurring subscription — there's
+  // no Paddle subscription to manage via the customer portal.
   const hasPaidSubscription =
+    !isLifetime &&
     !!overview?.subscription?.paddle_subscription_id &&
     overview.subscription.status !== "canceled";
-  const currentPlanCode = overview?.subscription?.plan_code ?? overview?.organization?.plan ?? "free_trial";
 
-  const planBadge = isTrialExpired
-    ? { className: "bg-destructive/10 text-destructive border-destructive/20", text: "Expired" }
-    : hasPaidSubscription
-      ? { className: "bg-success/10 text-success border-success/20", text: overview?.subscription?.status ?? "Active" }
-      : { className: "bg-info/10 text-info border-info/20", text: "Trialing" };
+  const planBadge = isLifetime
+    ? { className: "bg-success/10 text-success border-success/20", text: "Lifetime" }
+    : isTrialExpired
+      ? { className: "bg-destructive/10 text-destructive border-destructive/20", text: "Expired" }
+      : hasPaidSubscription
+        ? { className: "bg-success/10 text-success border-success/20", text: overview?.subscription?.status ?? "Active" }
+        : { className: "bg-info/10 text-info border-info/20", text: "Trialing" };
 
   return (
     <div className="space-y-6">
@@ -108,15 +113,15 @@ function Page() {
               </p>
             )}
           </div>
-          {hasPaidSubscription ? (
+          {isLifetime ? null : hasPaidSubscription ? (
             <Button variant="outline" onClick={onManage} disabled={portalLoading}>
               {portalLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
               Manage subscription
             </Button>
           ) : (
-            <Button onClick={() => onUpgrade("starter_monthly")} disabled={checkoutLoading}>
+            <Button onClick={() => onUpgrade("lifetime")} disabled={checkoutLoading}>
               {checkoutLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              Upgrade
+              Get lifetime access
             </Button>
           )}
         </div>
@@ -153,39 +158,25 @@ function Page() {
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 max-w-md">
         <PlanCard
-          plan={starterPlan}
-          fallbackName="Starter"
-          fallbackPrice={3900}
+          plan={lifetimePlan}
+          fallbackName="Lifetime"
+          fallbackPrice={29900}
+          priceSuffix="one-time"
           fallbackFeatures={[
             "AI lead CRM",
             "Native webhook/API ingest",
             "AI extraction & replies",
             "Email automation",
             "Up to 200 leads/month",
+            "Pay once, use forever",
           ]}
           highlight
           currentPlanCode={currentPlanCode}
-          planCode="starter"
+          planCode="lifetime"
           loading={checkoutLoading}
-          onUpgrade={() => onUpgrade("starter_monthly")}
-        />
-        <PlanCard
-          plan={proPlan}
-          fallbackName="Pro"
-          fallbackPrice={9900}
-          fallbackFeatures={[
-            "Everything in Starter",
-            "Unlimited leads",
-            "Multiple team members",
-            "Advanced analytics",
-            "Priority support",
-          ]}
-          currentPlanCode={currentPlanCode}
-          planCode="pro"
-          loading={checkoutLoading}
-          onUpgrade={() => onUpgrade("pro_monthly")}
+          onUpgrade={() => onUpgrade("lifetime")}
         />
       </div>
     </div>
@@ -196,6 +187,7 @@ function PlanCard({
   plan,
   fallbackName,
   fallbackPrice,
+  priceSuffix = "/month",
   fallbackFeatures,
   highlight,
   currentPlanCode,
@@ -206,10 +198,11 @@ function PlanCard({
   plan: { name: string; price_cents: number; features: unknown } | null | undefined;
   fallbackName: string;
   fallbackPrice: number;
+  priceSuffix?: string;
   fallbackFeatures: string[];
   highlight?: boolean;
   currentPlanCode: string;
-  planCode: "starter" | "pro";
+  planCode: "lifetime";
   loading: boolean;
   onUpgrade: () => void;
 }) {
@@ -231,7 +224,7 @@ function PlanCard({
           <div className="flex items-center gap-2 mb-1">
             <Sparkles className="h-4 w-4 text-primary" />
             <span className="text-xs font-semibold uppercase tracking-wider text-primary">
-              Most popular
+              One-time payment
             </span>
           </div>
         )}
@@ -240,7 +233,7 @@ function PlanCard({
           <span className="text-4xl font-bold text-foreground">
             £{((plan?.price_cents ?? fallbackPrice) / 100).toFixed(0)}
           </span>
-          <span className="text-sm text-muted-foreground">/month</span>
+          <span className="text-sm text-muted-foreground">{priceSuffix}</span>
         </div>
         <ul className="mt-5 space-y-2.5">
           {features.map((f) => (
@@ -258,7 +251,7 @@ function PlanCard({
           onClick={onUpgrade}
           disabled={loading || isCurrent}
         >
-          {isCurrent ? "Current plan" : `Upgrade to ${plan?.name ?? fallbackName}`}
+          {isCurrent ? "Current plan" : `Get ${plan?.name ?? fallbackName} access`}
         </Button>
       </div>
     </div>
