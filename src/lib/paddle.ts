@@ -44,7 +44,22 @@ export async function initializePaddle() {
   });
 }
 
+// Prices created directly in the Paddle dashboard (as opposed to imported
+// via Paddle's Import API) have no import_meta.external_id, so they can't
+// be found by the /prices?external_id= lookup below. Known raw Paddle price
+// IDs are hardcoded here instead, keyed by our app-level price key and
+// Paddle environment. Keep in sync with LIFETIME_PADDLE_PRICE_IDS in
+// src/routes/api/public/payments/webhook.ts.
+const KNOWN_PRICE_IDS: Partial<Record<string, Partial<Record<"sandbox" | "live", string>>>> = {
+  lifetime: {
+    live: "pri_01kzky8sre3hma43evhhk4sv8t",
+    sandbox: "pri_01kznmst7n99s8021wf0k1ma5q",
+  },
+};
+
 export async function getPaddlePriceId(priceId: string): Promise<string> {
   const environment = getPaddleEnvironment();
+  const known = KNOWN_PRICE_IDS[priceId]?.[environment];
+  if (known) return known;
   return resolvePaddlePrice({ data: { priceId, environment } });
 }

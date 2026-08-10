@@ -138,7 +138,7 @@ function LandingPage() {
                 </Button>
               </Link>
             </div>
-            <p className="mt-4 text-xs text-muted-foreground">No credit card required. 14-day free trial.</p>
+            <p className="mt-4 text-xs text-muted-foreground">No credit card required. 7-day free trial.</p>
           </div>
         </div>
       </section>
@@ -235,7 +235,7 @@ function LandingPage() {
               <h3 className="font-semibold text-foreground">Free Trial</h3>
               <div className="mt-3 flex items-baseline gap-1">
                 <span className="text-3xl font-bold text-foreground">£0</span>
-                <span className="text-sm text-muted-foreground">/ 14 days</span>
+                <span className="text-sm text-muted-foreground">/ 7 days</span>
               </div>
               <p className="mt-2 text-sm text-muted-foreground">Try every feature with no commitment.</p>
               <ul className="mt-5 space-y-2.5">
@@ -255,23 +255,23 @@ function LandingPage() {
               <div className="relative">
                 <div className="flex items-center gap-2 mb-1">
                   <Sparkles className="h-4 w-4 text-primary" />
-                  <span className="text-xs font-semibold uppercase tracking-wider text-primary">Most popular</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-primary">One-time payment</span>
                 </div>
-                <h3 className="font-semibold text-foreground">Starter Plan</h3>
+                <h3 className="font-semibold text-foreground">Lifetime</h3>
                 <div className="mt-3 flex items-baseline gap-1">
-                  <span className="text-3xl font-bold text-foreground">£49</span>
-                  <span className="text-sm text-muted-foreground">/month</span>
+                  <span className="text-3xl font-bold text-foreground">£299</span>
+                  <span className="text-sm text-muted-foreground">one-time</span>
                 </div>
-                <p className="mt-2 text-sm text-muted-foreground">Everything you need to capture and convert leads.</p>
+                <p className="mt-2 text-sm text-muted-foreground">Pay once, use forever. No recurring bills.</p>
                 <ul className="mt-5 space-y-2.5">
-                  {["Unlimited AI replies", "Unlimited leads", "Multi-channel capture", "Full CRM & analytics", "Team members"].map((f) => (
+                  {["200 AI replies/month", "200 leads/month", "Multi-channel capture", "Full CRM & analytics", "Email automation"].map((f) => (
                     <li key={f} className="flex items-center gap-2 text-sm text-foreground">
                       <Check className="h-4 w-4 text-primary shrink-0" /> {f}
                     </li>
                   ))}
                 </ul>
                 <Link to="/auth">
-                  <Button className="w-full mt-6">Get started</Button>
+                  <Button className="w-full mt-6">Get lifetime access</Button>
                 </Link>
               </div>
             </div>

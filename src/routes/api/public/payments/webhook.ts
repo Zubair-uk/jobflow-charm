@@ -195,6 +195,75 @@ async function handleSubscriptionCanceled(data: any, env: PaddleEnv) {
   }
 }
 
+// Dashboard-created prices have no import_meta.external_id, so unlike
+// planCodeFromProduct() above, we can't match this one by external_id.
+// Matched on the raw Paddle price ID instead. Keep in sync with
+// KNOWN_PRICE_IDS.lifetime in src/lib/paddle.ts.
+const LIFETIME_PADDLE_PRICE_IDS: Partial<Record<PaddleEnv, string>> = {
+  live: "pri_01kzky8sre3hma43evhhk4sv8t",
+  sandbox: "pri_01kznmst7n99s8021wf0k1ma5q",
+};
+
+/**
+ * One-time Lifetime plan purchase. Subscription renewals also fire
+ * transaction.completed, but those are already handled by
+ * SubscriptionCreated/SubscriptionUpdated — only handle genuine one-off
+ * transactions (no subscriptionId) here.
+ */
+async function handleTransactionCompleted(data: any, env: PaddleEnv) {
+  if (data?.subscriptionId) return;
+
+  const priceId: string | undefined = data?.items?.[0]?.price?.id;
+  if (!priceId || priceId !== LIFETIME_PADDLE_PRICE_IDS[env]) {
+    console.warn("[paddle webhook] one-off transaction with unrecognized price; skipping", {
+      priceId,
+      env,
+    });
+    return;
+  }
+
+  const { customerId, customData } = data;
+  const organizationId: string | undefined = customData?.organizationId;
+  if (!organizationId) {
+    console.error("[paddle webhook] missing customData.organizationId");
+    return;
+  }
+
+  const supabase = getSupabase();
+
+  await supabase.from("subscriptions").upsert(
+    {
+      organization_id: organizationId,
+      paddle_customer_id: customerId,
+      provider: "paddle",
+      plan_code: "lifetime",
+      status: "active",
+      current_period_start: new Date().toISOString(),
+      current_period_end: null,
+      environment: env,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "organization_id" },
+  );
+
+  // Activate immediately, end trial. No current_period_end — a one-time
+  // purchase never expires. Reset usage so the new plan's limits apply now.
+  await supabase
+    .from("organizations")
+    .update({
+      plan: "lifetime",
+      billing_status: "active",
+      current_period_end: null,
+      paddle_customer_id: customerId,
+      trial_ends_at: new Date().toISOString(),
+      past_due_since: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", organizationId);
+
+  await resetUsageForNewPeriod(organizationId);
+}
+
 async function handleTransactionPaymentFailed(data: any, env: PaddleEnv) {
   const subscriptionId: string | undefined = data?.subscriptionId;
   if (!subscriptionId) return;
@@ -235,6 +304,9 @@ async function handleWebhook(req: Request, env: PaddleEnv) {
       break;
     case EventName.SubscriptionCanceled:
       await handleSubscriptionCanceled(event.data, env);
+      break;
+    case EventName.TransactionCompleted:
+      await handleTransactionCompleted(event.data, env);
       break;
     case EventName.TransactionPaymentFailed:
       await handleTransactionPaymentFailed(event.data, env);

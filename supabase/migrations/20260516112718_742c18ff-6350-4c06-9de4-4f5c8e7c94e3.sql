@@ -2,7 +2,8 @@
 -- and only to topics scoped by their user_id. postgres_changes still respects
 -- table-level RLS on public.leads (leads_select_own enforces auth.uid() = user_id),
 -- but we add channel-level authorization here as defense-in-depth.
-ALTER TABLE realtime.messages ENABLE ROW LEVEL SECURITY;
+-- RLS is already enabled on realtime.messages by default (owned by supabase_realtime_admin,
+-- not postgres), so this only needs to add the policies.
 
 CREATE POLICY "authenticated_can_receive_realtime"
 ON realtime.messages
