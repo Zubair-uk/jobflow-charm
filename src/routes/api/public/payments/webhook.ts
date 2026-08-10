@@ -195,6 +195,15 @@ async function handleSubscriptionCanceled(data: any, env: PaddleEnv) {
   }
 }
 
+// Dashboard-created prices have no import_meta.external_id, so unlike
+// planCodeFromProduct() above, we can't match this one by external_id.
+// Matched on the raw Paddle price ID instead. Keep in sync with
+// KNOWN_PRICE_IDS.lifetime in src/lib/paddle.ts.
+const LIFETIME_PADDLE_PRICE_IDS: Partial<Record<PaddleEnv, string>> = {
+  live: "pri_01kzky8sre3hma43evhhk4sv8t",
+  sandbox: "pri_01kznmst7n99s8021wf0k1ma5q",
+};
+
 /**
  * One-time Lifetime plan purchase. Subscription renewals also fire
  * transaction.completed, but those are already handled by
@@ -203,6 +212,15 @@ async function handleSubscriptionCanceled(data: any, env: PaddleEnv) {
  */
 async function handleTransactionCompleted(data: any, env: PaddleEnv) {
   if (data?.subscriptionId) return;
+
+  const priceId: string | undefined = data?.items?.[0]?.price?.id;
+  if (!priceId || priceId !== LIFETIME_PADDLE_PRICE_IDS[env]) {
+    console.warn("[paddle webhook] one-off transaction with unrecognized price; skipping", {
+      priceId,
+      env,
+    });
+    return;
+  }
 
   const { customerId, customData } = data;
   const organizationId: string | undefined = customData?.organizationId;
